@@ -26,24 +26,24 @@ class VideoCard extends StatelessWidget {
 
   Widget _buildStandardCard(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+        padding: const EdgeInsets.only(bottom: 16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Thumbnail
+            // 16:9 Thumbnail with YouTube-style Duration Badge
             AspectRatio(
               aspectRatio: 16 / 9,
               child: Stack(
                 children: [
                   ClipRRect(
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(0), // Full width flush like YouTube mobile
                     child: Container(
-                      color: theme.colorScheme.surfaceContainerHighest,
+                      color: isDark ? const Color(0xFF1F1F1F) : const Color(0xFFE5E5E5),
                       width: double.infinity,
                       height: double.infinity,
                       child: Image.network(
@@ -52,7 +52,7 @@ class VideoCard extends StatelessWidget {
                         errorBuilder: (_, _, _) => Center(
                           child: Icon(
                             Icons.play_circle_outline_rounded,
-                            size: 48,
+                            size: 54,
                             color: theme.colorScheme.onSurface.withAlpha(80),
                           ),
                         ),
@@ -66,15 +66,16 @@ class VideoCard extends StatelessWidget {
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
-                          color: Colors.black.withAlpha(200),
+                          color: Colors.black.withAlpha(210),
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Text(
                           video.formattedDuration,
                           style: const TextStyle(
                             color: Colors.white,
-                            fontSize: 11,
+                            fontSize: 12,
                             fontWeight: FontWeight.w600,
+                            letterSpacing: 0.2,
                           ),
                         ),
                       ),
@@ -86,71 +87,100 @@ class VideoCard extends StatelessWidget {
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
-                          color: AppColors.error,
+                          color: AppColors.primary,
                           borderRadius: BorderRadius.circular(4),
                         ),
-                        child: const Text(
-                          'LIVE',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                          ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.sensors_rounded, color: Colors.white, size: 12),
+                            SizedBox(width: 4),
+                            Text(
+                              'LIVE',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
                 ],
               ),
             ),
-            const SizedBox(height: 10),
-            // Info Row
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                CircleAvatar(
-                  radius: 18,
-                  backgroundColor: AppColors.primary.withAlpha(30),
-                  backgroundImage: video.channelAvatarUrl != null
-                      ? NetworkImage(video.channelAvatarUrl!)
-                      : null,
-                  child: video.channelAvatarUrl == null
-                      ? Text(
-                          video.channelTitle.isNotEmpty ? video.channelTitle[0] : '?',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.primary,
-                          ),
-                        )
-                      : null,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        video.title,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w600,
-                          height: 1.25,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '${video.channelTitle} • ${video.formattedViews} • ${video.formattedTimeAgo}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurface.withAlpha(160),
-                        ),
-                      ),
-                    ],
+
+            // Metadata row: Avatar + Title & Info + 3-Dot Kebab Menu
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 10, 6, 0),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Channel Avatar
+                  CircleAvatar(
+                    radius: 18,
+                    backgroundColor: isDark ? const Color(0xFF272727) : const Color(0xFFEEEEEE),
+                    backgroundImage: video.channelAvatarUrl != null
+                        ? NetworkImage(video.channelAvatarUrl!)
+                        : null,
+                    child: video.channelAvatarUrl == null
+                        ? Text(
+                            video.channelTitle.isNotEmpty ? video.channelTitle[0].toUpperCase() : 'C',
+                            style: TextStyle(
+                              color: isDark ? Colors.white : Colors.black87,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                            ),
+                          )
+                        : null,
                   ),
-                ),
-                _buildActionMenu(context),
-              ],
+                  const SizedBox(width: 12),
+
+                  // Title + Subtitle
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          video.title,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            height: 1.25,
+                            color: isDark ? const Color(0xFFF1F1F1) : const Color(0xFF0F0F0F),
+                            letterSpacing: -0.2,
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          '${video.channelTitle} • ${video.formattedViews} • ${video.formattedTimeAgo}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: isDark ? const Color(0xFFAAAAAA) : const Color(0xFF606060),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Kebab 3-dot menu
+                  IconButton(
+                    icon: Icon(
+                      Icons.more_vert_rounded,
+                      size: 20,
+                      color: isDark ? Colors.white70 : Colors.black54,
+                    ),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    onPressed: () => _showVideoActionSheet(context),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
@@ -160,33 +190,30 @@ class VideoCard extends StatelessWidget {
 
   Widget _buildCompactCard(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Compact thumbnail
             SizedBox(
-              width: 130,
+              width: 140,
               child: AspectRatio(
                 aspectRatio: 16 / 9,
                 child: Stack(
                   children: [
                     ClipRRect(
                       borderRadius: BorderRadius.circular(8),
-                      child: Container(
-                        color: theme.colorScheme.surfaceContainerHighest,
-                        width: double.infinity,
-                        height: double.infinity,
-                        child: Image.network(
-                          video.thumbnailUrl,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, _, _) => const Center(
-                            child: Icon(Icons.play_arrow_rounded, size: 28),
-                          ),
+                      child: Image.network(
+                        video.thumbnailUrl,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, _, _) => Container(
+                          color: isDark ? const Color(0xFF272727) : const Color(0xFFEEEEEE),
+                          child: const Icon(Icons.play_arrow_rounded),
                         ),
                       ),
                     ),
@@ -197,8 +224,8 @@ class VideoCard extends StatelessWidget {
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
                           decoration: BoxDecoration(
-                            color: Colors.black.withAlpha(200),
-                            borderRadius: BorderRadius.circular(3),
+                            color: Colors.black.withAlpha(210),
+                            borderRadius: BorderRadius.circular(4),
                           ),
                           child: Text(
                             video.formattedDuration,
@@ -215,6 +242,8 @@ class VideoCard extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 12),
+
+            // Metadata
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -223,124 +252,115 @@ class VideoCard extends StatelessWidget {
                     video.title,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.titleSmall?.copyWith(
+                    style: TextStyle(
+                      fontSize: 13,
                       fontWeight: FontWeight.w600,
-                      height: 1.2,
+                      height: 1.25,
+                      color: isDark ? const Color(0xFFF1F1F1) : const Color(0xFF0F0F0F),
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 3),
                   Text(
                     video.channelTitle,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurface.withAlpha(160),
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: isDark ? const Color(0xFFAAAAAA) : const Color(0xFF606060),
                     ),
                   ),
-                  const SizedBox(height: 2),
+                  const SizedBox(height: 1),
                   Text(
                     '${video.formattedViews} • ${video.formattedTimeAgo}',
-                    style: theme.textTheme.bodySmall?.copyWith(
+                    style: TextStyle(
                       fontSize: 11,
-                      color: theme.colorScheme.onSurface.withAlpha(130),
+                      color: isDark ? const Color(0xFFAAAAAA) : const Color(0xFF606060),
                     ),
                   ),
                 ],
               ),
             ),
-            _buildActionMenu(context),
-          ],
-        ),
-      ),
-    );
-  }
 
-  Widget _buildActionMenu(BuildContext context) {
-    return PopupMenuButton<String>(
-      icon: Icon(
-        Icons.more_vert_rounded,
-        size: 18,
-        color: Theme.of(context).colorScheme.onSurface.withAlpha(160),
-      ),
-      padding: EdgeInsets.zero,
-      onSelected: (action) async {
-        final library = context.read<LibraryProvider>();
-        if (action == 'watch_later') {
-          await library.addToWatchLater(video);
-          if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Added to Watch Later')),
-            );
-          }
-        } else if (action == 'playlist') {
-          _showAddToPlaylistDialog(context);
-        }
-      },
-      itemBuilder: (context) => [
-        const PopupMenuItem(
-          value: 'watch_later',
-          child: Row(
-            children: [
-              Icon(Icons.watch_later_outlined, size: 18),
-              SizedBox(width: 10),
-              Text('Save to Watch Later'),
-            ],
-          ),
-        ),
-        const PopupMenuItem(
-          value: 'playlist',
-          child: Row(
-            children: [
-              Icon(Icons.playlist_add_rounded, size: 18),
-              SizedBox(width: 10),
-              Text('Add to playlist'),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  void _showAddToPlaylistDialog(BuildContext context) {
-    final library = context.read<LibraryProvider>();
-    showDialog(
-      context: context,
-      builder: (ctx) {
-        final playlists = library.playlists;
-        return AlertDialog(
-          title: const Text('Add to Playlist'),
-          content: playlists.isEmpty
-              ? const Text('No playlists created yet. Create one in Library.')
-              : SizedBox(
-                  width: double.maxFinite,
-                  child: ListView.builder(
-                    shrinkWrap: true,
-                    itemCount: playlists.length,
-                    itemBuilder: (c, idx) {
-                      final p = playlists[idx];
-                      return ListTile(
-                        leading: const Icon(Icons.playlist_play_rounded),
-                        title: Text(p.title),
-                        subtitle: Text('${p.videoCount} videos'),
-                        onTap: () async {
-                          await library.addVideoToPlaylist(p.id, video);
-                          if (ctx.mounted) {
-                            Navigator.pop(ctx);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text('Added to ${p.title}')),
-                            );
-                          }
-                        },
-                      );
-                    },
-                  ),
-                ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Close'),
+            // 3-dot menu
+            IconButton(
+              icon: Icon(
+                Icons.more_vert_rounded,
+                size: 18,
+                color: isDark ? Colors.white70 : Colors.black54,
+              ),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+              onPressed: () => _showVideoActionSheet(context),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  void _showVideoActionSheet(BuildContext context) {
+    final library = context.read<LibraryProvider>();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: isDark ? const Color(0xFF212121) : Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.playlist_play_rounded),
+                  title: const Text('Play next in queue'),
+                  onTap: () => Navigator.pop(ctx),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.watch_later_outlined),
+                  title: const Text('Save to Watch Later'),
+                  onTap: () async {
+                    Navigator.pop(ctx);
+                    await library.addToWatchLater(video);
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Saved to Watch Later')),
+                      );
+                    }
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.playlist_add_rounded),
+                  title: const Text('Save to playlist'),
+                  onTap: () => Navigator.pop(ctx),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.share_outlined),
+                  title: const Text('Share'),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Shared link: https://youtube.com/watch?v=${video.id}')),
+                    );
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.not_interested_rounded),
+                  title: const Text('Not interested'),
+                  onTap: () => Navigator.pop(ctx),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.block_rounded),
+                  title: const Text('Don\'t recommend channel'),
+                  onTap: () => Navigator.pop(ctx),
+                ),
+              ],
+            ),
+          ),
         );
       },
     );

@@ -7,65 +7,51 @@ class GamatubeLogo extends StatelessWidget {
 
   const GamatubeLogo({
     super.key,
-    this.size = 28,
+    this.size = 24,
     this.showText = true,
   });
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Row(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
+        // Iconic Red Play Badge (YouTube Silhouette)
         Container(
-          width: size,
-          height: size,
+          width: size * 1.35,
+          height: size * 0.95,
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [AppColors.primary, AppColors.secondary],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
+            color: AppColors.primary,
             borderRadius: BorderRadius.circular(size * 0.28),
             boxShadow: [
               BoxShadow(
-                color: AppColors.primary.withAlpha(50),
-                blurRadius: 8,
+                color: AppColors.primary.withAlpha(80),
+                blurRadius: 6,
                 offset: const Offset(0, 2),
               ),
             ],
           ),
           alignment: Alignment.center,
-          child: Text(
-            'G',
-            style: TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w900,
-              fontSize: size * 0.65,
-              letterSpacing: -1,
-            ),
+          child: Icon(
+            Icons.play_arrow_rounded,
+            color: Colors.white,
+            size: size * 0.72,
           ),
         ),
         if (showText) ...[
-          const SizedBox(width: 8),
-          Text.rich(
-            TextSpan(
-              text: 'GAMA',
-              style: TextStyle(
-                fontWeight: FontWeight.w900,
-                fontSize: size * 0.68,
-                letterSpacing: 0.5,
-              ),
-              children: [
-                TextSpan(
-                  text: 'TUBE',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w400,
-                    color: AppColors.primary,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-              ],
+          const SizedBox(width: 6),
+          Text(
+            'GamaTube',
+            style: TextStyle(
+              fontSize: size * 0.78,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.8,
+              color: isDark ? Colors.white : const Color(0xFF0F0F0F),
+              fontFamily: 'Roboto',
             ),
           ),
         ],

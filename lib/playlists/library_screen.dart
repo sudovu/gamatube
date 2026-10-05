@@ -3,7 +3,9 @@ import 'package:provider/provider.dart';
 import '../history/history_screen.dart';
 import '../playback/video_player_screen.dart';
 import '../playlists/watch_later_screen.dart';
+import '../providers/auth_provider.dart';
 import '../providers/library_provider.dart';
+import '../settings/settings_screen.dart';
 import '../theme/app_colors.dart';
 
 class LibraryScreen extends StatelessWidget {
@@ -12,30 +14,117 @@ class LibraryScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final library = context.watch<LibraryProvider>();
+    final auth = context.watch<AuthProvider>();
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Library'),
+        title: const Text(
+          'You',
+          style: TextStyle(fontWeight: FontWeight.w800, fontSize: 20),
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.cast_rounded),
+            onPressed: () {},
+          ),
+          IconButton(
+            icon: const Icon(Icons.notifications_none_rounded),
+            onPressed: () {},
+          ),
+          IconButton(
+            icon: const Icon(Icons.search_rounded),
+            onPressed: () {},
+          ),
+          IconButton(
+            icon: const Icon(Icons.settings_outlined),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const SettingsScreen()),
+              );
+            },
+          ),
+        ],
       ),
       body: ListView(
         padding: const EdgeInsets.symmetric(vertical: 8),
         children: [
+          // Profile Header Row (YouTube Modern "You" Tab)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: 36,
+                  backgroundColor: AppColors.primary,
+                  child: Text(
+                    auth.user?.name.isNotEmpty == true ? auth.user!.name[0].toUpperCase() : 'G',
+                    style: const TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        auth.user?.name ?? 'Guest User',
+                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        auth.user?.email ?? '@gamatube_user • View channel',
+                        style: TextStyle(fontSize: 12, color: isDark ? Colors.white60 : Colors.black54),
+                      ),
+                      const SizedBox(height: 8),
+                      // Switch Account / Google Account Pills
+                      Row(
+                        children: [
+                          _buildProfilePill(
+                            context,
+                            icon: Icons.switch_account_rounded,
+                            label: 'Switch account',
+                            onTap: () {
+                              if (auth.isAuthenticated) {
+                                auth.signOut();
+                              } else {
+                                auth.signIn();
+                              }
+                            },
+                          ),
+                          const SizedBox(width: 8),
+                          _buildProfilePill(
+                            context,
+                            icon: Icons.account_circle_outlined,
+                            label: 'Google Account',
+                            onTap: () {
+                              if (!auth.isAuthenticated) {
+                                auth.signIn();
+                              }
+                            },
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 12),
+
           // Section 1: History
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  children: [
-                    const Icon(Icons.history_rounded, size: 20),
-                    const SizedBox(width: 8),
-                    Text(
-                      'History',
-                      style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
-                    ),
-                  ],
+                const Text(
+                  'History',
+                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17),
                 ),
                 TextButton(
                   onPressed: () {
@@ -44,7 +133,7 @@ class LibraryScreen extends StatelessWidget {
                       MaterialPageRoute(builder: (_) => const HistoryScreen()),
                     );
                   },
-                  child: const Text('See all'),
+                  child: const Text('View all', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
                 ),
               ],
             ),
@@ -52,8 +141,10 @@ class LibraryScreen extends StatelessWidget {
           if (library.history.isEmpty)
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Text('No watch history yet. Videos you watch will appear here.',
-                  style: TextStyle(fontSize: 13, color: Colors.grey)),
+              child: Text(
+                'No watch history yet. Videos you watch will appear here.',
+                style: TextStyle(fontSize: 13, color: Colors.grey),
+              ),
             )
           else
             SizedBox(
@@ -61,12 +152,12 @@ class LibraryScreen extends StatelessWidget {
               child: ListView.separated(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 scrollDirection: Axis.horizontal,
-                itemCount: library.history.take(6).length,
+                itemCount: library.history.take(8).length,
                 separatorBuilder: (_, _) => const SizedBox(width: 12),
                 itemBuilder: (context, index) {
                   final item = library.history[index];
                   return SizedBox(
-                    width: 200,
+                    width: 160,
                     child: InkWell(
                       onTap: () {
                         Navigator.push(
@@ -79,22 +170,47 @@ class LibraryScreen extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: AspectRatio(
-                              aspectRatio: 16 / 9,
-                              child: Image.network(
-                                item.video.thumbnailUrl,
-                                fit: BoxFit.cover,
+                          Stack(
+                            children: [
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: AspectRatio(
+                                  aspectRatio: 16 / 9,
+                                  child: Image.network(
+                                    item.video.thumbnailUrl,
+                                    fit: BoxFit.cover,
+                                  ),
+                                ),
                               ),
-                            ),
+                              Positioned(
+                                bottom: 0,
+                                left: 0,
+                                right: 0,
+                                child: ClipRRect(
+                                  borderRadius: const BorderRadius.vertical(bottom: Radius.circular(8)),
+                                  child: LinearProgressIndicator(
+                                    value: item.completionPercentage,
+                                    backgroundColor: Colors.black54,
+                                    valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
+                                    minHeight: 3.5,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                           const SizedBox(height: 6),
                           Text(
                             item.video.title,
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, height: 1.2),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            item.video.channelTitle,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(fontSize: 11, color: isDark ? Colors.white54 : Colors.black45),
                           ),
                         ],
                       ),
@@ -104,121 +220,202 @@ class LibraryScreen extends StatelessWidget {
               ),
             ),
 
-          const Divider(height: 32),
+          const SizedBox(height: 16),
 
-          // Section 2: Watch Later Quick Access
-          ListTile(
-            leading: const Icon(Icons.watch_later_outlined, color: AppColors.primary),
-            title: const Text('Watch Later', style: TextStyle(fontWeight: FontWeight.w600)),
-            subtitle: Text('${library.watchLater.length} videos'),
-            trailing: const Icon(Icons.chevron_right_rounded),
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const WatchLaterScreen()),
-              );
-            },
-          ),
-
-          const Divider(height: 32),
-
-          // Section 3: Playlists
+          // Section 2: Playlists
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  children: [
-                    const Icon(Icons.playlist_play_rounded, size: 22),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Playlists',
-                      style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
-                    ),
-                  ],
+                const Text(
+                  'Playlists',
+                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17),
                 ),
-                TextButton.icon(
-                  onPressed: () => _showCreatePlaylistDialog(context),
-                  icon: const Icon(Icons.add_rounded, size: 18),
-                  label: const Text('New playlist'),
+                TextButton(
+                  onPressed: () {},
+                  child: const Text('View all', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
                 ),
               ],
             ),
           ),
-          if (library.playlists.isEmpty)
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Text('No custom playlists yet. Tap "New playlist" to create one.',
-                  style: TextStyle(fontSize: 13, color: Colors.grey)),
-            )
-          else
-            ...library.playlists.map((playlist) => ListTile(
-                  leading: Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withAlpha(30),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Icon(Icons.playlist_play_rounded, color: AppColors.primary),
-                  ),
-                  title: Text(playlist.title, style: const TextStyle(fontWeight: FontWeight.w600)),
-                  subtitle: Text('${playlist.videoCount} videos • Local playlist'),
-                  trailing: IconButton(
-                    icon: const Icon(Icons.delete_outline_rounded, size: 20),
-                    onPressed: () => library.deletePlaylist(playlist.id),
-                  ),
+          SizedBox(
+            height: 140,
+            child: ListView(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              scrollDirection: Axis.horizontal,
+              children: [
+                // Watch Later Playlist Card
+                _buildPlaylistTile(
+                  context,
+                  title: 'Watch Later',
+                  count: '${library.watchLater.length} videos',
+                  icon: Icons.watch_later_rounded,
+                  iconColor: AppColors.primary,
                   onTap: () {
-                    if (playlist.items.isNotEmpty) {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => VideoPlayerScreen(video: playlist.items.first),
-                        ),
-                      );
-                    } else {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('This playlist has no videos yet.')),
-                      );
-                    }
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const WatchLaterScreen()),
+                    );
                   },
-                )),
+                ),
+                const SizedBox(width: 12),
+                // Liked Videos Playlist Card
+                _buildPlaylistTile(
+                  context,
+                  title: 'Liked videos',
+                  count: 'Auto-saved',
+                  icon: Icons.thumb_up_rounded,
+                  iconColor: const Color(0xFF3EA6FF),
+                  onTap: () {},
+                ),
+                const SizedBox(width: 12),
+                // Custom Playlists
+                ...library.playlists.map(
+                  (p) => Padding(
+                    padding: const EdgeInsets.only(right: 12),
+                    child: _buildPlaylistTile(
+                      context,
+                      title: p.title,
+                      count: '${p.videoCount} videos',
+                      icon: Icons.playlist_play_rounded,
+                      iconColor: Colors.white,
+                      onTap: () {},
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 16),
+          const Divider(thickness: 1, height: 24),
+
+          // Action Items (YouTube You tab list)
+          _buildActionRow(
+            icon: Icons.slideshow_rounded,
+            title: 'Your videos',
+            onTap: () {},
+          ),
+          _buildActionRow(
+            icon: Icons.download_rounded,
+            title: 'Downloads',
+            subtitle: '0 videos',
+            onTap: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Offline downloads officially restricted by API terms.')),
+              );
+            },
+          ),
+          _buildActionRow(
+            icon: Icons.local_movies_outlined,
+            title: 'Your movies',
+            onTap: () {},
+          ),
+          _buildActionRow(
+            icon: Icons.query_builder_rounded,
+            title: 'Time watched',
+            subtitle: 'Stats & wellness',
+            onTap: () {},
+          ),
+          _buildActionRow(
+            icon: Icons.help_outline_rounded,
+            title: 'Help and feedback',
+            onTap: () {},
+          ),
         ],
       ),
     );
   }
 
-  void _showCreatePlaylistDialog(BuildContext context) {
-    final controller = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('New Playlist'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: const InputDecoration(
-            labelText: 'Title',
-            hintText: 'Enter playlist title...',
+  Widget _buildProfilePill(
+    BuildContext context, {
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF272727) : const Color(0xFFF2F2F2),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 14),
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPlaylistTile(
+    BuildContext context, {
+    required String title,
+    required String count,
+    required IconData icon,
+    required Color iconColor,
+    required VoidCallback onTap,
+  }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        width: 140,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF212121) : const Color(0xFFF5F5F5),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: isDark ? const Color(0xFF2A2A2A) : const Color(0xFFE5E5E5),
           ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () {
-              if (controller.text.trim().isNotEmpty) {
-                context.read<LibraryProvider>().createPlaylist(controller.text.trim());
-                Navigator.pop(ctx);
-              }
-            },
-            child: const Text('Create'),
-          ),
-        ],
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 28, color: iconColor),
+            const Spacer(),
+            Text(
+              title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              count,
+              style: TextStyle(fontSize: 11, color: isDark ? Colors.white60 : Colors.black54),
+            ),
+          ],
+        ),
       ),
+    );
+  }
+
+  Widget _buildActionRow({
+    required IconData icon,
+    required String title,
+    String? subtitle,
+    required VoidCallback onTap,
+  }) {
+    return ListTile(
+      leading: Icon(icon, size: 22),
+      title: Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+      subtitle: subtitle != null ? Text(subtitle, style: const TextStyle(fontSize: 12)) : null,
+      onTap: onTap,
     );
   }
 }

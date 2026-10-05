@@ -26,6 +26,7 @@ import 'repositories/watch_later_repository.dart';
 import 'search/search_screen.dart';
 import 'settings/settings_screen.dart';
 import 'settings/setup_wizard_dialog.dart';
+import 'shorts/shorts_screen.dart';
 import 'subscriptions/subscriptions_screen.dart';
 import 'theme/app_theme.dart';
 import 'widgets/responsive_scaffold.dart';
@@ -247,11 +248,18 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
   Widget build(BuildContext context) {
     final pages = [
       HomeScreen(
-        onSearchTap: () => setState(() => _currentIndex = 1),
+        onSearchTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const SearchScreen()),
+          );
+        },
+        onProfileTap: () => setState(() => _currentIndex = 3),
       ),
-      const SearchScreen(),
+      const ShortsScreen(),
       const SubscriptionsScreen(),
       const LibraryScreen(),
+      const SearchScreen(),
       const SettingsScreen(),
     ];
 

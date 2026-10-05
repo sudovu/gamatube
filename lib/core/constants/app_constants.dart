@@ -1,8 +1,8 @@
 class AppConstants {
   static const String appName = 'GAMATUBE';
   static const String appTagline = 'Your Personal Clean Video Experience';
-  static const String appVersion = '1.0.0';
-  static const String buildNumber = '1';
+  static const String appVersion = '1.1.0';
+  static const String buildNumber = '2';
 
   static const String privacyPolicyUrl = 'https://github.com/sudovu/gamatube/blob/main/PRIVACY.md';
   static const String termsUrl = 'https://github.com/sudovu/gamatube/blob/main/README.md';

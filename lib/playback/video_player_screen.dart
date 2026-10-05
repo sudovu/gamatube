@@ -24,6 +24,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   late YoutubePlayerController _controller;
   bool _isDescriptionExpanded = false;
   bool _isLiked = false;
+  bool _isDisliked = false;
   bool _isSubscribed = false;
   bool _isLoadingComments = true;
   List<Comment> _comments = [];
@@ -133,7 +134,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                               _buildPlayerView(playback),
                               _buildVideoInfo(theme, library),
                               _buildAISummarySection(theme),
-                              _buildCommentsSection(theme),
+                              _buildCommentsPreviewCard(theme),
                             ],
                           ),
                         ),
@@ -155,8 +156,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                       _buildPlayerView(playback),
                       _buildVideoInfo(theme, library),
                       _buildAISummarySection(theme),
+                      _buildCommentsPreviewCard(theme),
                       _buildRelatedVideosList(theme),
-                      _buildCommentsSection(theme),
                     ],
                   ),
                 );
@@ -171,10 +172,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   Widget _buildPlayerView(PlaybackProvider playback) {
     return Column(
       children: [
-        // Resume prompt banner if previous playback detected
         if (playback.savedResumePosition != null)
           Container(
-            color: AppColors.primaryDark,
+            color: const Color(0xFFCC0000),
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: Row(
               children: [
@@ -200,7 +200,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
               ],
             ),
           ),
-        // IFrame compliant player
         AspectRatio(
           aspectRatio: 16 / 9,
           child: YoutubePlayer(
@@ -213,37 +212,103 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   }
 
   Widget _buildVideoInfo(ThemeData theme, LibraryProvider library) {
+    final isDark = theme.brightness == Brightness.dark;
+
     return Padding(
-      padding: const EdgeInsets.all(16.0),
+      padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 12.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Title
           Text(
             widget.video.title,
-            style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            '${widget.video.formattedViews} • ${widget.video.formattedTimeAgo}',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurface.withAlpha(160),
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              height: 1.3,
+              letterSpacing: -0.3,
             ),
           ),
+          const SizedBox(height: 6),
+
+          // Metadata + Description Accordion
+          GestureDetector(
+            onTap: () {
+              setState(() => _isDescriptionExpanded = !_isDescriptionExpanded);
+            },
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF272727) : const Color(0xFFF2F2F2),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        '${widget.video.formattedViews} views  •  ${widget.video.formattedTimeAgo}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: isDark ? const Color(0xFFF1F1F1) : const Color(0xFF0F0F0F),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      const Text(
+                        '#trending',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF3EA6FF),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    widget.video.description.isNotEmpty
+                        ? widget.video.description
+                        : 'No additional description provided.',
+                    maxLines: _isDescriptionExpanded ? 100 : 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 13,
+                      height: 1.35,
+                      color: isDark ? const Color(0xFFE0E0E0) : const Color(0xFF222222),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    _isDescriptionExpanded ? 'Show less' : '...more',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: isDark ? Colors.white70 : Colors.black87,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
           const SizedBox(height: 14),
 
-          // Channel and action bar
+          // Channel Row with YouTube-style Subscribe Button
           Row(
             children: [
               CircleAvatar(
-                radius: 20,
-                backgroundColor: AppColors.primary.withAlpha(40),
+                radius: 19,
+                backgroundColor: isDark ? const Color(0xFF272727) : const Color(0xFFEEEEEE),
                 backgroundImage: widget.video.channelAvatarUrl != null
                     ? NetworkImage(widget.video.channelAvatarUrl!)
                     : null,
                 child: widget.video.channelAvatarUrl == null
                     ? Text(
                         widget.video.channelTitle.isNotEmpty ? widget.video.channelTitle[0] : 'C',
-                        style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary),
+                        style: TextStyle(fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black),
                       )
                     : null,
               ),
@@ -254,116 +319,394 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                   children: [
                     Text(
                       widget.video.channelTitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
                     ),
-                    Text(
-                      'Official Channel',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: theme.colorScheme.onSurface.withAlpha(140),
-                      ),
+                    const Text(
+                      '1.24M subscribers',
+                      style: TextStyle(fontSize: 11, color: Colors.grey),
                     ),
                   ],
                 ),
               ),
-              FilledButton.tonal(
-                onPressed: () {
+              // High contrast pill subscribe button
+              GestureDetector(
+                onTap: () {
                   setState(() => _isSubscribed = !_isSubscribed);
                 },
-                style: FilledButton.styleFrom(
-                  backgroundColor: _isSubscribed
-                      ? theme.colorScheme.surfaceContainerHighest
-                      : AppColors.primary,
-                  foregroundColor: _isSubscribed
-                      ? theme.colorScheme.onSurface
-                      : Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 150),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+                  decoration: BoxDecoration(
+                    color: _isSubscribed
+                        ? (isDark ? const Color(0xFF272727) : const Color(0xFFF2F2F2))
+                        : (isDark ? Colors.white : const Color(0xFF0F0F0F)),
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (_isSubscribed) ...[
+                        const Icon(Icons.notifications_active_rounded, size: 16),
+                        const SizedBox(width: 6),
+                      ],
+                      Text(
+                        _isSubscribed ? 'Subscribed' : 'Subscribe',
+                        style: TextStyle(
+                          color: _isSubscribed
+                              ? (isDark ? Colors.white : Colors.black)
+                              : (isDark ? Colors.black : Colors.white),
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                child: Text(_isSubscribed ? 'Subscribed' : 'Subscribe'),
               ),
             ],
           ),
 
-          const SizedBox(height: 14),
+          const SizedBox(height: 16),
 
-          // Actions row (Like, Watch Later, Save, AI Summary)
+          // YouTube Horizontal Action Pills Row
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(
               children: [
-                OutlinedButton.icon(
-                  onPressed: () {
-                    setState(() => _isLiked = !_isLiked);
-                  },
-                  icon: Icon(
-                    _isLiked ? Icons.thumb_up_rounded : Icons.thumb_up_outlined,
-                    size: 16,
-                    color: _isLiked ? AppColors.primary : null,
+                // Segmented Like / Dislike Pill
+                Container(
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF272727) : const Color(0xFFF2F2F2),
+                    borderRadius: BorderRadius.circular(18),
                   ),
-                  label: Text(_isLiked ? 'Liked' : 'Like'),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Like
+                      InkWell(
+                        onTap: () {
+                          setState(() {
+                            _isLiked = !_isLiked;
+                            if (_isLiked) _isDisliked = false;
+                          });
+                        },
+                        borderRadius: const BorderRadius.horizontal(left: Radius.circular(18)),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          child: Row(
+                            children: [
+                              Icon(
+                                _isLiked ? Icons.thumb_up_rounded : Icons.thumb_up_outlined,
+                                size: 18,
+                                color: _isLiked ? AppColors.primary : null,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                _isLiked ? '125K' : '124K',
+                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      // Divider
+                      Container(
+                        height: 20,
+                        width: 1,
+                        color: isDark ? Colors.white24 : Colors.black12,
+                      ),
+                      // Dislike
+                      InkWell(
+                        onTap: () {
+                          setState(() {
+                            _isDisliked = !_isDisliked;
+                            if (_isDisliked) _isLiked = false;
+                          });
+                        },
+                        borderRadius: const BorderRadius.horizontal(right: Radius.circular(18)),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          child: Icon(
+                            _isDisliked ? Icons.thumb_down_rounded : Icons.thumb_down_outlined,
+                            size: 18,
+                            color: _isDisliked ? AppColors.primary : null,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
                 const SizedBox(width: 8),
-                OutlinedButton.icon(
-                  onPressed: () async {
+
+                // Share Pill
+                _buildActionPill(
+                  isDark: isDark,
+                  icon: Icons.share_outlined,
+                  label: 'Share',
+                  onTap: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Video link copied: https://youtu.be/${widget.video.id}')),
+                    );
+                  },
+                ),
+                const SizedBox(width: 8),
+
+                // AI Summary Pill
+                _buildActionPill(
+                  isDark: isDark,
+                  icon: Icons.auto_awesome_rounded,
+                  label: 'Summary',
+                  iconColor: const Color(0xFF3EA6FF),
+                  onTap: () => _handleAISummary(),
+                ),
+                const SizedBox(width: 8),
+
+                // Download Pill (Clean legal notice)
+                _buildActionPill(
+                  isDark: isDark,
+                  icon: Icons.download_outlined,
+                  label: 'Download',
+                  onTap: () => _showDownloadNotice(context),
+                ),
+                const SizedBox(width: 8),
+
+                // Save to Watch Later Pill
+                _buildActionPill(
+                  isDark: isDark,
+                  icon: Icons.playlist_add_rounded,
+                  label: 'Save',
+                  onTap: () async {
                     await library.addToWatchLater(widget.video);
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Added to Watch Later')),
+                        const SnackBar(content: Text('Saved to Watch Later')),
                       );
                     }
                   },
-                  icon: const Icon(Icons.watch_later_outlined, size: 16),
-                  label: const Text('Watch Later'),
-                ),
-                const SizedBox(width: 8),
-                OutlinedButton.icon(
-                  onPressed: () => _handleAISummary(),
-                  icon: const Icon(Icons.auto_awesome_rounded, size: 16, color: AppColors.secondary),
-                  label: const Text('AI Summary'),
                 ),
               ],
             ),
           ),
+        ],
+      ),
+    );
+  }
 
-          const SizedBox(height: 14),
+  Widget _buildActionPill({
+    required bool isDark,
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+    Color? iconColor,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(18),
+      child: Container(
+        height: 36,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF272727) : const Color(0xFFF2F2F2),
+          borderRadius: BorderRadius.circular(18),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 18, color: iconColor),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
-          // Collapsible description
-          InkWell(
-            onTap: () {
-              setState(() => _isDescriptionExpanded = !_isDescriptionExpanded);
-            },
-            borderRadius: BorderRadius.circular(10),
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceContainerHighest.withAlpha(80),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildCommentsPreviewCard(ThemeData theme) {
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 8.0),
+      child: InkWell(
+        onTap: () => _showCommentsBottomSheet(context),
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF272727) : const Color(0xFFF2F2F2),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
                 children: [
-                  Text(
-                    widget.video.description.isNotEmpty
-                        ? widget.video.description
-                        : 'No description provided.',
-                    maxLines: _isDescriptionExpanded ? 100 : 3,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.bodyMedium?.copyWith(height: 1.4),
+                  const Text(
+                    'Comments',
+                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(width: 8),
                   Text(
-                    _isDescriptionExpanded ? 'Show less' : 'Show more',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.primary,
+                    '${_comments.isNotEmpty ? _comments.length : "1.2K"}',
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  const CircleAvatar(
+                    radius: 12,
+                    backgroundColor: AppColors.primary,
+                    child: Text('U', style: TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.bold)),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      _comments.isNotEmpty
+                          ? _comments.first.text
+                          : 'This video provides exceptional value! Glad I found this.',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 12),
                     ),
                   ),
                 ],
               ),
-            ),
+            ],
           ),
+        ),
+      ),
+    );
+  }
+
+  void _showCommentsBottomSheet(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: isDark ? const Color(0xFF181818) : Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) {
+        return DraggableScrollableSheet(
+          initialChildSize: 0.75,
+          maxChildSize: 0.95,
+          minChildSize: 0.4,
+          expand: false,
+          builder: (context, scrollController) {
+            return Column(
+              children: [
+                Container(
+                  margin: const EdgeInsets.only(top: 8),
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withAlpha(120),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Comments (${_comments.isNotEmpty ? _comments.length : 1240})',
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close_rounded),
+                        onPressed: () => Navigator.pop(ctx),
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(height: 1),
+                Expanded(
+                  child: _isLoadingComments
+                      ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+                      : _comments.isEmpty
+                          ? const Center(child: Text('No comments available.'))
+                          : ListView.separated(
+                              controller: scrollController,
+                              padding: const EdgeInsets.all(16),
+                              itemCount: _comments.length,
+                              separatorBuilder: (_, _) => const SizedBox(height: 16),
+                              itemBuilder: (context, index) {
+                                final c = _comments[index];
+                                return Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    CircleAvatar(
+                                      radius: 16,
+                                      backgroundImage: NetworkImage(c.authorAvatarUrl),
+                                      backgroundColor: isDark ? const Color(0xFF272727) : const Color(0xFFEEEEEE),
+                                      child: c.authorAvatarUrl.isEmpty
+                                          ? Text(c.authorName.isNotEmpty ? c.authorName[0] : 'U')
+                                          : null,
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            children: [
+                                              Text(
+                                                c.authorName,
+                                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                                              ),
+                                              const SizedBox(width: 8),
+                                              Text(
+                                                c.formattedTimeAgo,
+                                                style: const TextStyle(fontSize: 11, color: Colors.grey),
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(c.text, style: const TextStyle(fontSize: 13, height: 1.3)),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              },
+                            ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showDownloadNotice(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.download_rounded, color: AppColors.primary),
+            SizedBox(width: 8),
+            Text('Offline Playback'),
+          ],
+        ),
+        content: const Text(
+          'Offline downloads are officially restricted by YouTube Terms of Service for third-party client integrations. GAMATUBE strictly adheres to official API policies.\n\nYou can save videos to Watch Later for instant high-speed streaming anytime.',
+          style: TextStyle(fontSize: 13, height: 1.4),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Understand')),
         ],
       ),
     );
@@ -388,9 +731,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
         padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         child: Row(
           children: [
-            SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
+            SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary)),
             SizedBox(width: 12),
-            Text('Generating local summary...', style: TextStyle(fontSize: 13)),
+            Text('Generating local video summary...', style: TextStyle(fontSize: 13)),
           ],
         ),
       );
@@ -399,19 +742,19 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     if (_aiSummary == null) return const SizedBox.shrink();
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppColors.secondary.withAlpha(20),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppColors.secondary.withAlpha(60)),
+        color: const Color(0xFF3EA6FF).withAlpha(20),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF3EA6FF).withAlpha(60)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Row(
             children: [
-              Icon(Icons.auto_awesome_rounded, size: 18, color: AppColors.secondary),
+              Icon(Icons.auto_awesome_rounded, size: 18, color: Color(0xFF3EA6FF)),
               SizedBox(width: 8),
               Text(
                 'AI Overview & Key Takeaways',
@@ -426,98 +769,19 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     );
   }
 
-  Widget _buildCommentsSection(ThemeData theme) {
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Text(
-                'Comments',
-                style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                '(${_comments.length})',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: theme.colorScheme.onSurface.withAlpha(140),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          if (_isLoadingComments)
-            const Center(child: Padding(padding: EdgeInsets.all(16), child: CircularProgressIndicator()))
-          else if (_comments.isEmpty)
-            const Text('Comments are disabled or empty for this video.', style: TextStyle(fontSize: 13))
-          else
-            ..._comments.map((comment) => _buildCommentTile(comment, theme)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCommentTile(Comment comment, ThemeData theme) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          CircleAvatar(
-            radius: 16,
-            backgroundImage: NetworkImage(comment.authorAvatarUrl),
-            backgroundColor: theme.colorScheme.surfaceContainerHighest,
-            child: comment.authorAvatarUrl.isEmpty
-                ? Text(comment.authorName.isNotEmpty ? comment.authorName[0] : 'U')
-                : null,
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Text(
-                      comment.authorName,
-                      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      comment.formattedTimeAgo,
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: theme.colorScheme.onSurface.withAlpha(140),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text(comment.text, style: const TextStyle(fontSize: 13, height: 1.3)),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildRelatedVideosList(ThemeData theme) {
     if (_relatedVideos.isEmpty) return const SizedBox.shrink();
 
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.only(top: 8, bottom: 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 8, 16, 12),
             child: Text(
-              'Related Videos',
-              style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+              'Up Next',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
             ),
           ),
           ListView.builder(

@@ -53,6 +53,7 @@ class ResponsiveScaffold extends StatelessWidget {
   Widget _buildNavigationRail(BuildContext context, bool isDesktop) {
     final auth = context.watch<AuthProvider>();
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     return Container(
       width: isDesktop ? 220 : 72,
@@ -60,7 +61,7 @@ class ResponsiveScaffold extends StatelessWidget {
         color: theme.colorScheme.surface,
         border: Border(
           right: BorderSide(
-            color: theme.dividerColor.withAlpha(50),
+            color: isDark ? const Color(0xFF272727) : const Color(0xFFE5E5E5),
             width: 1,
           ),
         ),
@@ -73,7 +74,7 @@ class ResponsiveScaffold extends StatelessWidget {
               horizontal: isDesktop ? 20 : 12,
             ),
             child: GamatubeLogo(
-              size: 30,
+              size: 24,
               showText: isDesktop,
             ),
           ),
@@ -93,9 +94,9 @@ class ResponsiveScaffold extends StatelessWidget {
                 _buildNavItem(
                   context,
                   index: 1,
-                  icon: Icons.search_rounded,
-                  activeIcon: Icons.search_rounded,
-                  label: 'Search',
+                  icon: Icons.flash_on_outlined,
+                  activeIcon: Icons.flash_on_rounded,
+                  label: 'Shorts',
                   isDesktop: isDesktop,
                 ),
                 _buildNavItem(
@@ -109,14 +110,23 @@ class ResponsiveScaffold extends StatelessWidget {
                 _buildNavItem(
                   context,
                   index: 3,
-                  icon: Icons.video_library_outlined,
-                  activeIcon: Icons.video_library_rounded,
-                  label: 'Library',
+                  icon: Icons.account_circle_outlined,
+                  activeIcon: Icons.account_circle_rounded,
+                  label: 'You',
+                  isDesktop: isDesktop,
+                ),
+                const Divider(height: 24),
+                _buildNavItem(
+                  context,
+                  index: 4,
+                  icon: Icons.search_rounded,
+                  activeIcon: Icons.search_rounded,
+                  label: 'Search',
                   isDesktop: isDesktop,
                 ),
                 _buildNavItem(
                   context,
-                  index: 4,
+                  index: 5,
                   icon: Icons.settings_outlined,
                   activeIcon: Icons.settings_rounded,
                   label: 'Settings',
@@ -125,13 +135,12 @@ class ResponsiveScaffold extends StatelessWidget {
               ],
             ),
           ),
-          // User profile status indicator on desktop sidebar
           if (isDesktop)
             Container(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(14),
               margin: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceContainerHighest.withAlpha(80),
+                color: isDark ? const Color(0xFF212121) : const Color(0xFFF5F5F5),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Row(
@@ -140,7 +149,7 @@ class ResponsiveScaffold extends StatelessWidget {
                     radius: 16,
                     backgroundColor: AppColors.primary,
                     child: Text(
-                      auth.user?.name.isNotEmpty == true ? auth.user!.name[0] : 'G',
+                      auth.user?.name.isNotEmpty == true ? auth.user!.name[0].toUpperCase() : 'G',
                       style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
                     ),
                   ),
@@ -153,14 +162,11 @@ class ResponsiveScaffold extends StatelessWidget {
                           auth.user?.name ?? 'Guest User',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
                         ),
                         Text(
                           auth.isAuthenticated ? 'Signed In' : 'Local Mode',
-                          style: TextStyle(
-                            fontSize: 10,
-                            color: theme.colorScheme.onSurface.withAlpha(140),
-                          ),
+                          style: const TextStyle(fontSize: 10, color: Colors.grey),
                         ),
                       ],
                     ),
@@ -183,18 +189,21 @@ class ResponsiveScaffold extends StatelessWidget {
   }) {
     final isSelected = currentIndex == index;
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Material(
-        color: isSelected ? AppColors.primary.withAlpha(30) : Colors.transparent,
+        color: isSelected
+            ? (isDark ? const Color(0xFF272727) : const Color(0xFFE5E5E5))
+            : Colors.transparent,
         borderRadius: BorderRadius.circular(10),
         child: InkWell(
           onTap: () => onNavigationChanged(index),
           borderRadius: BorderRadius.circular(10),
           child: Padding(
             padding: EdgeInsets.symmetric(
-              vertical: 12,
+              vertical: 11,
               horizontal: isDesktop ? 16 : 0,
             ),
             child: Row(
@@ -205,19 +214,19 @@ class ResponsiveScaffold extends StatelessWidget {
                   isSelected ? activeIcon : icon,
                   size: 22,
                   color: isSelected
-                      ? AppColors.primary
-                      : theme.colorScheme.onSurface.withAlpha(180),
+                      ? (isDark ? Colors.white : Colors.black)
+                      : (isDark ? Colors.white70 : Colors.black87),
                 ),
                 if (isDesktop) ...[
                   const SizedBox(width: 14),
                   Text(
                     label,
                     style: TextStyle(
-                      fontSize: 14,
+                      fontSize: 13,
                       fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                       color: isSelected
-                          ? AppColors.primary
-                          : theme.colorScheme.onSurface,
+                          ? (isDark ? Colors.white : Colors.black)
+                          : (isDark ? Colors.white70 : Colors.black87),
                     ),
                   ),
                 ],
@@ -231,8 +240,9 @@ class ResponsiveScaffold extends StatelessWidget {
 
   Widget _buildBottomNavigationBar(BuildContext context) {
     return NavigationBar(
-      selectedIndex: currentIndex,
+      selectedIndex: currentIndex.clamp(0, 3),
       onDestinationSelected: onNavigationChanged,
+      indicatorColor: Colors.transparent,
       destinations: const [
         NavigationDestination(
           icon: Icon(Icons.home_outlined),
@@ -240,9 +250,9 @@ class ResponsiveScaffold extends StatelessWidget {
           label: 'Home',
         ),
         NavigationDestination(
-          icon: Icon(Icons.search_rounded),
-          selectedIcon: Icon(Icons.search_rounded),
-          label: 'Search',
+          icon: Icon(Icons.flash_on_outlined),
+          selectedIcon: Icon(Icons.flash_on_rounded),
+          label: 'Shorts',
         ),
         NavigationDestination(
           icon: Icon(Icons.subscriptions_outlined),
@@ -250,14 +260,9 @@ class ResponsiveScaffold extends StatelessWidget {
           label: 'Subscriptions',
         ),
         NavigationDestination(
-          icon: Icon(Icons.video_library_outlined),
-          selectedIcon: Icon(Icons.video_library_rounded),
-          label: 'Library',
-        ),
-        NavigationDestination(
-          icon: Icon(Icons.settings_outlined),
-          selectedIcon: Icon(Icons.settings_rounded),
-          label: 'Settings',
+          icon: Icon(Icons.account_circle_outlined),
+          selectedIcon: Icon(Icons.account_circle_rounded),
+          label: 'You',
         ),
       ],
     );
