@@ -871,6 +871,13 @@ class YouTubeV3Service implements VideoPlatformService {
     if (lower.isEmpty || lower == 'all') return all;
 
     // 1. Direct Category filter mapping
+    if (lower.contains('short')) {
+      final matches = all.where((v) => v.description.contains('#shorts') || (v.duration != null && v.duration!.inSeconds <= 60)).toList();
+      if (matches.isNotEmpty) return matches;
+    }
+    if (lower.contains('trend') || lower.contains('popular')) {
+      return all.take(15).toList();
+    }
     if (lower.contains('game') || lower.contains('gaming')) {
       final matches = all.where((v) => v.description.contains('#gaming') || v.title.toLowerCase().contains('game') || v.title.toLowerCase().contains('minecraft') || v.title.toLowerCase().contains('gta') || v.title.toLowerCase().contains('witcher') || v.title.toLowerCase().contains('cyberpunk') || v.title.toLowerCase().contains('pewdiepie') || v.title.toLowerCase().contains('valorant') || v.title.toLowerCase().contains('elden')).toList();
       if (matches.isNotEmpty) return matches;

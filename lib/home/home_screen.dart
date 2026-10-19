@@ -160,16 +160,19 @@ class HomeScreen extends StatelessWidget {
                   itemBuilder: (context, index) {
                     if (index == 0) {
                       // Explore Compass icon
-                      return Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                        decoration: BoxDecoration(
-                          color: isDark ? const Color(0xFF272727) : const Color(0xFFF2F2F2),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Icon(
-                          Icons.explore_outlined,
-                          size: 18,
-                          color: isDark ? Colors.white70 : Colors.black87,
+                      return GestureDetector(
+                        onTap: () => _showExploreSheet(context, home),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          decoration: BoxDecoration(
+                            color: isDark ? const Color(0xFF272727) : const Color(0xFFF2F2F2),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Icon(
+                            Icons.explore_outlined,
+                            size: 18,
+                            color: isDark ? Colors.white70 : Colors.black87,
+                          ),
                         ),
                       );
                     }
@@ -597,6 +600,93 @@ class HomeScreen extends StatelessWidget {
                     subtitle: const Text('2 hours ago'),
                   ),
                 ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showExploreSheet(BuildContext context, HomeProvider home) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 36,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: isDark ? Colors.white24 : Colors.black26,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Explore Topics',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 14),
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  children: [
+                    _buildExploreTile(ctx, home, 'Trending', Icons.local_fire_department_rounded, const Color(0xFFFF4500)),
+                    _buildExploreTile(ctx, home, 'Music', Icons.music_note_rounded, const Color(0xFFFFB300)),
+                    _buildExploreTile(ctx, home, 'Gaming', Icons.sports_esports_rounded, const Color(0xFFE91E63)),
+                    _buildExploreTile(ctx, home, 'Podcasts', Icons.podcasts_rounded, const Color(0xFF4CAF50)),
+                    _buildExploreTile(ctx, home, 'Science & Tech', Icons.memory_rounded, const Color(0xFF2196F3)),
+                    _buildExploreTile(ctx, home, 'News', Icons.newspaper_rounded, const Color(0xFF9C27B0)),
+                    _buildExploreTile(ctx, home, 'Education', Icons.school_rounded, const Color(0xFF00BCD4)),
+                    _buildExploreTile(ctx, home, 'Documentaries', Icons.movie_filter_rounded, const Color(0xFFFF5722)),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildExploreTile(BuildContext context, HomeProvider home, String title, IconData icon, Color color) {
+    return InkWell(
+      onTap: () {
+        Navigator.pop(context);
+        home.selectCategory(title);
+      },
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        width: 160,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: color.withAlpha(25),
+          border: Border.all(color: color.withAlpha(80)),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: color, size: 22),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                title,
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
           ],

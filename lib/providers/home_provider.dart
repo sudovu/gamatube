@@ -13,6 +13,7 @@ class HomeProvider extends ChangeNotifier {
 
   final List<String> categories = const [
     'All',
+    'Trending',
     'Music',
     'Gaming',
     'Podcasts',
@@ -65,8 +66,24 @@ class HomeProvider extends ChangeNotifier {
     notifyListeners();
     if (category == 'All') {
       loadHomeContent(refresh: true);
+    } else if (category == 'Trending') {
+      _loadTrendingCategory();
     } else {
       _searchCategoryVideos(category);
+    }
+  }
+
+  Future<void> _loadTrendingCategory() async {
+    _isLoading = true;
+    notifyListeners();
+    try {
+      final trending = await _platformService.getTrending();
+      _feedVideos = trending;
+      _isLoading = false;
+      notifyListeners();
+    } catch (_) {
+      _isLoading = false;
+      notifyListeners();
     }
   }
 
