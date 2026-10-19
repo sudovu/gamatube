@@ -210,6 +210,10 @@ class GamatubeRoot extends StatelessWidget {
         return child ?? const SizedBox.shrink();
       },
       home: const MainNavigationShell(),
+      routes: {
+        '/search': (_) => const SearchScreen(),
+        '/settings': (_) => const SettingsScreen(),
+      },
     );
   }
 }

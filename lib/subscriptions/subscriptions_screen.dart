@@ -5,6 +5,7 @@ import '../playback/video_player_screen.dart';
 import '../providers/auth_provider.dart';
 import '../providers/home_provider.dart';
 import '../providers/library_provider.dart';
+import '../search/search_screen.dart';
 import '../theme/app_colors.dart';
 import '../widgets/account_sheet.dart';
 import '../widgets/empty_state_view.dart';
@@ -81,7 +82,10 @@ class _SubscriptionsScreenState extends State<SubscriptionsScreen> {
             icon: const Icon(Icons.search_rounded),
             tooltip: 'Search',
             onPressed: () {
-              Navigator.pushNamed(context, '/search');
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const SearchScreen()),
+              );
             },
           ),
           Padding(

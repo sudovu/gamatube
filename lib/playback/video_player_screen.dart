@@ -35,7 +35,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   bool _isCaptionsEnabled = true;
   double _playbackSpeed = 1.0;
   String _selectedQuality = 'Auto (1080p)';
-  String? _doubleTapSide;
   List<Comment> _comments = [];
   List<Video> _relatedVideos = [];
   String? _aiSummary;
@@ -57,7 +56,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   }
 
   void _initPlayer() {
-    _controller = YoutubePlayerController(
+    _controller = YoutubePlayerController.fromVideoId(
+      videoId: widget.video.id,
+      autoPlay: true,
       params: const YoutubePlayerParams(
         showControls: true,
         showFullscreenButton: true,
@@ -66,7 +67,23 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       ),
     );
 
-    _controller.loadVideoById(videoId: widget.video.id);
+    _controller.listen((event) {
+      if (!mounted) return;
+      final state = event.playerState;
+      if (state == PlayerState.ended) {
+        if (_isLooping) {
+          _controller.seekTo(seconds: 0);
+          _controller.playVideo();
+        } else if (_isAutoplayEnabled && _relatedVideos.isNotEmpty) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (_) => VideoPlayerScreen(video: _relatedVideos.first),
+            ),
+          );
+        }
+      }
+    });
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final playback = context.read<PlaybackProvider>();
@@ -191,22 +208,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     );
   }
 
-  void _triggerDoubleTapSeek(String side, PlaybackProvider playback) {
-    if (side == 'left') {
-      playback.seekRewind(10);
-      _controller.seekTo(seconds: (playback.currentPosition.inSeconds.toDouble() - 10).clamp(0, double.infinity));
-    } else {
-      playback.seekForward(10);
-      _controller.seekTo(seconds: playback.currentPosition.inSeconds.toDouble() + 10);
-    }
-    setState(() => _doubleTapSide = side);
-    Future.delayed(const Duration(milliseconds: 700), () {
-      if (mounted && _doubleTapSide == side) {
-        setState(() => _doubleTapSide = null);
-      }
-    });
-  }
-
   Widget _buildPlayerView(PlaybackProvider playback) {
     return Column(
       children: [
@@ -238,152 +239,96 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
               ],
             ),
           ),
-        Stack(
-          alignment: Alignment.center,
-          children: [
-            AspectRatio(
-              aspectRatio: 16 / 9,
-              child: YoutubePlayer(
-                controller: _controller,
-                aspectRatio: 16 / 9,
+        // Top Player Navigation & Action Strip
+        Container(
+          color: Colors.black,
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+          child: Row(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.arrow_back_rounded, color: Colors.white, size: 22),
+                tooltip: 'Back',
+                onPressed: () => Navigator.pop(context),
               ),
-            ),
-            // Top Bar Quick Controls Overlay
-            Positioned(
-              top: 4,
-              left: 4,
-              right: 4,
-              child: Row(
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.arrow_back_rounded, color: Colors.white, size: 22),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                  const Spacer(),
-                  // Autoplay switch
-                  Tooltip(
-                    message: _isAutoplayEnabled ? 'Autoplay is on' : 'Autoplay is off',
-                    child: IconButton(
-                      icon: Icon(
-                        _isAutoplayEnabled ? Icons.play_circle_filled_rounded : Icons.play_circle_outline_rounded,
-                        color: _isAutoplayEnabled ? Colors.white : Colors.white60,
-                        size: 20,
-                      ),
-                      onPressed: () {
-                        setState(() => _isAutoplayEnabled = !_isAutoplayEnabled);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(_isAutoplayEnabled ? 'Autoplay is on' : 'Autoplay is off'),
-                            duration: const Duration(seconds: 1),
-                          ),
-                        );
-                      },
-                    ),
-                  ),
-                  // Captions toggle
-                  Tooltip(
-                    message: 'Subtitles/CC',
-                    child: IconButton(
-                      icon: Icon(
-                        _isCaptionsEnabled ? Icons.closed_caption_rounded : Icons.closed_caption_outlined,
-                        color: _isCaptionsEnabled ? Colors.white : Colors.white60,
-                        size: 22,
-                      ),
-                      onPressed: () {
-                        setState(() => _isCaptionsEnabled = !_isCaptionsEnabled);
-                      },
-                    ),
-                  ),
-                  // Settings Gear (Quality, Speed, Loop, Sleep Timer, Stats)
-                  Tooltip(
-                    message: 'Settings',
-                    child: IconButton(
-                      icon: const Icon(Icons.settings_outlined, color: Colors.white, size: 20),
-                      onPressed: () => _showPlayerSettings(context),
-                    ),
-                  ),
-                ],
+              const Spacer(),
+              // Rewind 10s
+              Tooltip(
+                message: 'Rewind 10s',
+                child: IconButton(
+                  icon: const Icon(Icons.replay_10_rounded, color: Colors.white, size: 22),
+                  onPressed: () {
+                    playback.seekRewind(10);
+                    _controller.seekTo(
+                      seconds: (playback.currentPosition.inSeconds.toDouble() - 10).clamp(0, double.infinity),
+                    );
+                  },
+                ),
               ),
-            ),
-            // Double-Tap Seek Gestures Overlay
-            Positioned.fill(
-              child: Row(
-                children: [
-                  // Left 40% (Seek Backward 10s)
-                  Expanded(
-                    flex: 4,
-                    child: GestureDetector(
-                      behavior: HitTestBehavior.translucent,
-                      onDoubleTap: () => _triggerDoubleTapSeek('left', playback),
-                      child: Container(
-                        alignment: Alignment.center,
-                        child: _doubleTapSide == 'left'
-                            ? Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                                decoration: BoxDecoration(
-                                  color: Colors.black.withAlpha(170),
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                child: const Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(Icons.fast_rewind_rounded, color: Colors.white, size: 20),
-                                    SizedBox(width: 6),
-                                    Text('10 seconds', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
-                                  ],
-                                ),
-                              )
-                            : null,
-                      ),
-                    ),
-                  ),
-                  // Center 20% (Tap to play/pause)
-                  Expanded(
-                    flex: 2,
-                    child: GestureDetector(
-                      behavior: HitTestBehavior.translucent,
-                      onTap: () {
-                        playback.togglePlayPause();
-                        if (playback.isPlaying) {
-                          _controller.playVideo();
-                        } else {
-                          _controller.pauseVideo();
-                        }
-                      },
-                    ),
-                  ),
-                  // Right 40% (Seek Forward 10s)
-                  Expanded(
-                    flex: 4,
-                    child: GestureDetector(
-                      behavior: HitTestBehavior.translucent,
-                      onDoubleTap: () => _triggerDoubleTapSeek('right', playback),
-                      child: Container(
-                        alignment: Alignment.center,
-                        child: _doubleTapSide == 'right'
-                            ? Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                                decoration: BoxDecoration(
-                                  color: Colors.black.withAlpha(170),
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                child: const Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text('10 seconds', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
-                                    SizedBox(width: 6),
-                                    Icon(Icons.fast_forward_rounded, color: Colors.white, size: 20),
-                                  ],
-                                ),
-                              )
-                            : null,
-                      ),
-                    ),
-                  ),
-                ],
+              // Forward 10s
+              Tooltip(
+                message: 'Forward 10s',
+                child: IconButton(
+                  icon: const Icon(Icons.forward_10_rounded, color: Colors.white, size: 22),
+                  onPressed: () {
+                    playback.seekForward(10);
+                    _controller.seekTo(
+                      seconds: playback.currentPosition.inSeconds.toDouble() + 10,
+                    );
+                  },
+                ),
               ),
-            ),
-          ],
+              // Autoplay switch
+              Tooltip(
+                message: _isAutoplayEnabled ? 'Autoplay is on' : 'Autoplay is off',
+                child: IconButton(
+                  icon: Icon(
+                    _isAutoplayEnabled ? Icons.play_circle_filled_rounded : Icons.play_circle_outline_rounded,
+                    color: _isAutoplayEnabled ? Colors.white : Colors.white60,
+                    size: 20,
+                  ),
+                  onPressed: () {
+                    setState(() => _isAutoplayEnabled = !_isAutoplayEnabled);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(_isAutoplayEnabled ? 'Autoplay is on' : 'Autoplay is off'),
+                        duration: const Duration(seconds: 1),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              // Captions toggle
+              Tooltip(
+                message: 'Subtitles/CC',
+                child: IconButton(
+                  icon: Icon(
+                    _isCaptionsEnabled ? Icons.closed_caption_rounded : Icons.closed_caption_outlined,
+                    color: _isCaptionsEnabled ? Colors.white : Colors.white60,
+                    size: 22,
+                  ),
+                  onPressed: () {
+                    setState(() => _isCaptionsEnabled = !_isCaptionsEnabled);
+                  },
+                ),
+              ),
+              // Settings Gear (Quality, Speed, Loop, Sleep Timer, Stats)
+              Tooltip(
+                message: 'Settings',
+                child: IconButton(
+                  icon: const Icon(Icons.settings_outlined, color: Colors.white, size: 20),
+                  onPressed: () => _showPlayerSettings(context),
+                ),
+              ),
+            ],
+          ),
+        ),
+        // Active YouTube Player View (Unobstructed for full native touch & gestures)
+        AspectRatio(
+          aspectRatio: 16 / 9,
+          child: YoutubePlayer(
+            controller: _controller,
+            aspectRatio: 16 / 9,
+          ),
         ),
       ],
     );

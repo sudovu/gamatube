@@ -5,6 +5,7 @@ import '../playback/video_player_screen.dart';
 import '../playlists/watch_later_screen.dart';
 import '../providers/auth_provider.dart';
 import '../providers/library_provider.dart';
+import '../search/search_screen.dart';
 import '../settings/settings_screen.dart';
 import '../theme/app_colors.dart';
 import '../widgets/account_sheet.dart';
@@ -37,7 +38,13 @@ class LibraryScreen extends StatelessWidget {
           ),
           IconButton(
             icon: const Icon(Icons.search_rounded),
-            onPressed: () {},
+            tooltip: 'Search',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const SearchScreen()),
+              );
+            },
           ),
           IconButton(
             icon: const Icon(Icons.settings_outlined),
