@@ -29,6 +29,7 @@ import 'settings/setup_wizard_dialog.dart';
 import 'shorts/shorts_screen.dart';
 import 'subscriptions/subscriptions_screen.dart';
 import 'theme/app_theme.dart';
+import 'widgets/account_sheet.dart';
 import 'widgets/responsive_scaffold.dart';
 
 void main() async {
@@ -145,6 +146,7 @@ class GamatubeApp extends StatelessWidget {
             historyRepository: historyRepository,
             watchLaterRepository: watchLaterRepository,
             playlistRepository: playlistRepository,
+            localStore: localStore,
           ),
         ),
       ],
@@ -254,7 +256,7 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
             MaterialPageRoute(builder: (_) => const SearchScreen()),
           );
         },
-        onProfileTap: () => setState(() => _currentIndex = 3),
+        onProfileTap: () => AccountSheet.show(context),
       ),
       const ShortsScreen(),
       const SubscriptionsScreen(),

@@ -15,6 +15,7 @@ class AppConstants {
   static const String keyWatchLater = 'gamatube_watch_later_v1';
   static const String keyPlaylists = 'gamatube_playlists_v1';
   static const String keyAuthSession = 'gamatube_auth_session_v1';
+  static const String keySavedAccounts = 'gamatube_saved_accounts_v1';
   static const String keySubscriptions = 'gamatube_subscriptions_v1';
   static const String keyFirstRun = 'gamatube_first_run_completed';
 

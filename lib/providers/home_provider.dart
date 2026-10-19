@@ -57,6 +57,8 @@ class HomeProvider extends ChangeNotifier {
     }
   }
 
+  Future<void> loadFeed() => loadHomeContent(refresh: true);
+
   void selectCategory(String category) {
     if (_selectedCategory == category) return;
     _selectedCategory = category;

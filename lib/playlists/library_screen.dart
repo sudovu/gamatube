@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../history/history_screen.dart';
 import '../playback/video_player_screen.dart';
 import '../playlists/watch_later_screen.dart';
@@ -7,6 +8,7 @@ import '../providers/auth_provider.dart';
 import '../providers/library_provider.dart';
 import '../settings/settings_screen.dart';
 import '../theme/app_colors.dart';
+import '../widgets/account_sheet.dart';
 
 class LibraryScreen extends StatelessWidget {
   const LibraryScreen({super.key});
@@ -52,67 +54,184 @@ class LibraryScreen extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 8),
         children: [
           // Profile Header Row (YouTube Modern "You" Tab)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Row(
-              children: [
-                CircleAvatar(
-                  radius: 36,
-                  backgroundColor: AppColors.primary,
-                  child: Text(
-                    auth.user?.name.isNotEmpty == true ? auth.user!.name[0].toUpperCase() : 'G',
-                    style: const TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold),
+          if (auth.isIncognito)
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Colors.black,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  const CircleAvatar(
+                    radius: 24,
+                    backgroundColor: Color(0xFF272727),
+                    child: Icon(Icons.visibility_off_rounded, color: Colors.white, size: 24),
                   ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          "You're Incognito",
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                        ),
+                        const SizedBox(height: 2),
+                        const Text(
+                          'History is paused while incognito',
+                          style: TextStyle(fontSize: 12, color: Colors.white70),
+                        ),
+                      ],
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () => auth.toggleIncognito(),
+                    child: const Text('Turn off', style: TextStyle(color: Color(0xFF3EA6FF), fontWeight: FontWeight.bold)),
+                  ),
+                ],
+              ),
+            )
+          else if (auth.isAuthenticated && auth.user != null)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 36,
+                    backgroundColor: AppColors.primary,
+                    backgroundImage: auth.user!.avatarUrl != null
+                        ? NetworkImage(auth.user!.avatarUrl!)
+                        : null,
+                    child: auth.user!.avatarUrl == null
+                        ? Text(
+                            auth.user!.name.isNotEmpty ? auth.user!.name[0].toUpperCase() : 'G',
+                            style: const TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold),
+                          )
+                        : null,
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          auth.user!.name,
+                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '${auth.user!.displayHandle} • ${auth.user!.email}',
+                          style: TextStyle(fontSize: 12, color: isDark ? Colors.white60 : Colors.black54),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 8),
+                        // Switch Account / Google Account Pills
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 6,
+                          children: [
+                            _buildProfilePill(
+                              context,
+                              icon: Icons.switch_account_rounded,
+                              label: 'Switch account',
+                              onTap: () => AccountSheet.show(context),
+                            ),
+                            _buildProfilePill(
+                              context,
+                              icon: Icons.account_circle_outlined,
+                              label: 'Google Account',
+                              onTap: () {
+                                launchUrl(
+                                  Uri.parse('https://myaccount.google.com/'),
+                                  mode: LaunchMode.externalApplication,
+                                );
+                              },
+                            ),
+                            _buildProfilePill(
+                              context,
+                              icon: Icons.visibility_off_outlined,
+                              label: 'Incognito',
+                              onTap: () => auth.toggleIncognito(),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else
+            // Signed Out Header (YouTube Lookalike Prompt)
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF212121) : const Color(0xFFF7F7F7),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: isDark ? const Color(0xFF2E2E2E) : const Color(0xFFE5E5E5),
                 ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(
                     children: [
-                      Text(
-                        auth.user?.name ?? 'Guest User',
-                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        auth.user?.email ?? '@gamatube_user • View channel',
-                        style: TextStyle(fontSize: 12, color: isDark ? Colors.white60 : Colors.black54),
-                      ),
-                      const SizedBox(height: 8),
-                      // Switch Account / Google Account Pills
-                      Row(
-                        children: [
-                          _buildProfilePill(
-                            context,
-                            icon: Icons.switch_account_rounded,
-                            label: 'Switch account',
-                            onTap: () {
-                              if (auth.isAuthenticated) {
-                                auth.signOut();
-                              } else {
-                                auth.signIn();
-                              }
-                            },
-                          ),
-                          const SizedBox(width: 8),
-                          _buildProfilePill(
-                            context,
-                            icon: Icons.account_circle_outlined,
-                            label: 'Google Account',
-                            onTap: () {
-                              if (!auth.isAuthenticated) {
-                                auth.signIn();
-                              }
-                            },
-                          ),
-                        ],
+                      Icon(Icons.account_circle_outlined, size: 36, color: AppColors.primary),
+                      SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Enjoy your favorite videos',
+                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                            ),
+                            SizedBox(height: 2),
+                            Text(
+                              'Sign in with your Google account to access subscriptions, history, and playlists',
+                              style: TextStyle(fontSize: 12, color: Colors.grey),
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                   ),
-                ),
-              ],
+                  const SizedBox(height: 14),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: FilledButton.icon(
+                          onPressed: () => auth.signIn(),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                          ),
+                          icon: const Icon(Icons.login_rounded, size: 18),
+                          label: const Text('Sign in with Google', style: TextStyle(fontWeight: FontWeight.bold)),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      OutlinedButton(
+                        onPressed: () => AccountSheet.showAddGmailDialog(context),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                        ),
+                        child: const Text('Add Gmail'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ),
 
           const SizedBox(height: 12),
 
@@ -264,10 +383,10 @@ class LibraryScreen extends StatelessWidget {
                 _buildPlaylistTile(
                   context,
                   title: 'Liked videos',
-                  count: 'Auto-saved',
+                  count: '${library.likedVideos.length} videos',
                   icon: Icons.thumb_up_rounded,
                   iconColor: const Color(0xFF3EA6FF),
-                  onTap: () {},
+                  onTap: () => _showLikedVideosSheet(context, library),
                 ),
                 const SizedBox(width: 12),
                 // Custom Playlists
@@ -416,6 +535,130 @@ class LibraryScreen extends StatelessWidget {
       title: Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
       subtitle: subtitle != null ? Text(subtitle, style: const TextStyle(fontSize: 12)) : null,
       onTap: onTap,
+    );
+  }
+
+  void _showLikedVideosSheet(BuildContext context, LibraryProvider library) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        final isDark = Theme.of(ctx).brightness == Brightness.dark;
+        final videos = library.likedVideos;
+
+        return DraggableScrollableSheet(
+          initialChildSize: 0.65,
+          minChildSize: 0.4,
+          maxChildSize: 0.9,
+          builder: (_, scrollController) {
+            return Container(
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+              ),
+              child: Column(
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      margin: const EdgeInsets.symmetric(vertical: 10),
+                      decoration: BoxDecoration(
+                        color: isDark ? Colors.white24 : Colors.black26,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.thumb_up_rounded, color: Color(0xFF3EA6FF), size: 24),
+                        const SizedBox(width: 12),
+                        Text(
+                          'Liked Videos (${videos.length})',
+                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Divider(),
+                  if (videos.isEmpty)
+                    const Expanded(
+                      child: Center(
+                        child: Text(
+                          'No liked videos yet.\nTap the Like button on any video to save it here.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: Colors.grey),
+                        ),
+                      ),
+                    )
+                  else
+                    Expanded(
+                      child: ListView.separated(
+                        controller: scrollController,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        itemCount: videos.length,
+                        separatorBuilder: (_, _) => const SizedBox(height: 12),
+                        itemBuilder: (context, index) {
+                          final v = videos[index];
+                          return InkWell(
+                            onTap: () {
+                              Navigator.pop(ctx);
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (_) => VideoPlayerScreen(video: v)),
+                              );
+                            },
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Image.network(
+                                    v.thumbnailUrl,
+                                    width: 110,
+                                    height: 62,
+                                    fit: BoxFit.cover,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        v.title,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        v.channelTitle,
+                                        style: TextStyle(fontSize: 11, color: isDark ? Colors.white60 : Colors.black54),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.thumb_down_outlined, size: 18),
+                                  tooltip: 'Remove from Liked',
+                                  onPressed: () => library.toggleLike(v),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                ],
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }

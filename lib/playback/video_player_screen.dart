@@ -3,8 +3,10 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:youtube_player_iframe/youtube_player_iframe.dart';
 import '../api/video_platform_service.dart';
+import '../models/channel.dart';
 import '../models/comment.dart';
 import '../models/video.dart';
+import '../providers/auth_provider.dart';
 import '../providers/library_provider.dart';
 import '../providers/playback_provider.dart';
 import '../services/ai_service.dart';
@@ -22,6 +24,7 @@ class VideoPlayerScreen extends StatefulWidget {
 
 class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   late YoutubePlayerController _controller;
+  final TextEditingController _commentController = TextEditingController();
   bool _isDescriptionExpanded = false;
   bool _isLiked = false;
   bool _isDisliked = false;
@@ -37,6 +40,14 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     super.initState();
     _initPlayer();
     _loadMetadata();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final library = context.read<LibraryProvider>();
+    _isLiked = library.isVideoLiked(widget.video.id);
+    _isSubscribed = library.isChannelSubscribed(widget.video.channelTitle);
   }
 
   void _initPlayer() {
@@ -59,19 +70,23 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
 
   Future<void> _loadMetadata() async {
     final service = context.read<VideoPlatformService>();
+    final library = context.read<LibraryProvider>();
     try {
       final comments = await service.getComments(widget.video.id);
+      final localComments = library.getComments(widget.video.id);
       final related = await service.getRelatedVideos(widget.video.id);
       if (mounted) {
         setState(() {
-          _comments = comments;
+          _comments = [...localComments, ...comments];
           _relatedVideos = related;
           _isLoadingComments = false;
         });
       }
     } catch (_) {
       if (mounted) {
+        final localComments = library.getComments(widget.video.id);
         setState(() {
+          _comments = localComments;
           _isLoadingComments = false;
         });
       }
@@ -81,6 +96,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   @override
   void dispose() {
     _controller.close();
+    _commentController.dispose();
     super.dispose();
   }
 
@@ -332,8 +348,26 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
               ),
               // High contrast pill subscribe button
               GestureDetector(
-                onTap: () {
-                  setState(() => _isSubscribed = !_isSubscribed);
+                onTap: () async {
+                  final channel = Channel(
+                    id: widget.video.channelId.isNotEmpty ? widget.video.channelId : widget.video.channelTitle,
+                    title: widget.video.channelTitle,
+                    description: '',
+                    avatarUrl: widget.video.channelAvatarUrl ?? '',
+                  );
+                  await library.toggleSubscribe(channel);
+                  final isNowSubscribed = library.isChannelSubscribed(widget.video.channelTitle);
+                  setState(() => _isSubscribed = isNowSubscribed);
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(isNowSubscribed
+                            ? 'Subscribed to ${widget.video.channelTitle}'
+                            : 'Unsubscribed from ${widget.video.channelTitle}'),
+                        duration: const Duration(seconds: 2),
+                      ),
+                    );
+                  }
                 },
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 150),
@@ -387,11 +421,21 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                     children: [
                       // Like
                       InkWell(
-                        onTap: () {
+                        onTap: () async {
+                          await library.toggleLike(widget.video);
+                          final isNowLiked = library.isVideoLiked(widget.video.id);
                           setState(() {
-                            _isLiked = !_isLiked;
+                            _isLiked = isNowLiked;
                             if (_isLiked) _isDisliked = false;
                           });
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(isNowLiked ? 'Added to Liked videos' : 'Removed from Liked videos'),
+                                duration: const Duration(seconds: 2),
+                              ),
+                            );
+                          }
                         },
                         borderRadius: const BorderRadius.horizontal(left: Radius.circular(18)),
                         child: Padding(
@@ -406,7 +450,11 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                               const SizedBox(width: 6),
                               Text(
                                 _isLiked ? '125K' : '124K',
-                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: _isLiked ? AppColors.primary : null,
+                                ),
                               ),
                             ],
                           ),
@@ -423,7 +471,12 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                         onTap: () {
                           setState(() {
                             _isDisliked = !_isDisliked;
-                            if (_isDisliked) _isLiked = false;
+                            if (_isDisliked) {
+                              _isLiked = false;
+                              if (library.isVideoLiked(widget.video.id)) {
+                                library.toggleLike(widget.video);
+                              }
+                            }
                           });
                         },
                         borderRadius: const BorderRadius.horizontal(right: Radius.circular(18)),
@@ -588,6 +641,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
 
   void _showCommentsBottomSheet(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final auth = context.read<AuthProvider>();
+    final library = context.read<LibraryProvider>();
 
     showModalBottomSheet(
       context: context,
@@ -597,92 +652,177 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
       builder: (ctx) {
-        return DraggableScrollableSheet(
-          initialChildSize: 0.75,
-          maxChildSize: 0.95,
-          minChildSize: 0.4,
-          expand: false,
-          builder: (context, scrollController) {
-            return Column(
-              children: [
-                Container(
-                  margin: const EdgeInsets.only(top: 8),
-                  width: 36,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.withAlpha(120),
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Comments (${_comments.isNotEmpty ? _comments.length : 1240})',
-                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        return StatefulBuilder(
+          builder: (sheetContext, setSheetState) {
+            return DraggableScrollableSheet(
+              initialChildSize: 0.75,
+              maxChildSize: 0.95,
+              minChildSize: 0.4,
+              expand: false,
+              builder: (context, scrollController) {
+                return Column(
+                  children: [
+                    Container(
+                      margin: const EdgeInsets.only(top: 8),
+                      width: 36,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.withAlpha(120),
+                        borderRadius: BorderRadius.circular(2),
                       ),
-                      IconButton(
-                        icon: const Icon(Icons.close_rounded),
-                        onPressed: () => Navigator.pop(ctx),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Comments (${_comments.isNotEmpty ? _comments.length : 1240})',
+                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.close_rounded),
+                            onPressed: () => Navigator.pop(ctx),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                ),
-                const Divider(height: 1),
-                Expanded(
-                  child: _isLoadingComments
-                      ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
-                      : _comments.isEmpty
-                          ? const Center(child: Text('No comments available.'))
-                          : ListView.separated(
-                              controller: scrollController,
-                              padding: const EdgeInsets.all(16),
-                              itemCount: _comments.length,
-                              separatorBuilder: (_, _) => const SizedBox(height: 16),
-                              itemBuilder: (context, index) {
-                                final c = _comments[index];
-                                return Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    CircleAvatar(
-                                      radius: 16,
-                                      backgroundImage: NetworkImage(c.authorAvatarUrl),
-                                      backgroundColor: isDark ? const Color(0xFF272727) : const Color(0xFFEEEEEE),
-                                      child: c.authorAvatarUrl.isEmpty
-                                          ? Text(c.authorName.isNotEmpty ? c.authorName[0] : 'U')
-                                          : null,
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Row(
+                    ),
+                    const Divider(height: 1),
+                    Expanded(
+                      child: _isLoadingComments
+                          ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+                          : _comments.isEmpty
+                              ? const Center(child: Text('No comments yet. Be the first to comment!'))
+                              : ListView.separated(
+                                  controller: scrollController,
+                                  padding: const EdgeInsets.all(16),
+                                  itemCount: _comments.length,
+                                  separatorBuilder: (_, _) => const SizedBox(height: 16),
+                                  itemBuilder: (context, index) {
+                                    final c = _comments[index];
+                                    return Row(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        CircleAvatar(
+                                          radius: 16,
+                                          backgroundImage: c.authorAvatarUrl.isNotEmpty
+                                              ? NetworkImage(c.authorAvatarUrl)
+                                              : null,
+                                          backgroundColor: isDark ? const Color(0xFF272727) : const Color(0xFFEEEEEE),
+                                          child: c.authorAvatarUrl.isEmpty
+                                              ? Text(c.authorName.isNotEmpty ? c.authorName[0] : 'U')
+                                              : null,
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
                                             children: [
-                                              Text(
-                                                c.authorName,
-                                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                                              Row(
+                                                children: [
+                                                  Text(
+                                                    c.authorName,
+                                                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                                                  ),
+                                                  const SizedBox(width: 8),
+                                                  Text(
+                                                    c.formattedTimeAgo.isNotEmpty ? c.formattedTimeAgo : 'Just now',
+                                                    style: const TextStyle(fontSize: 11, color: Colors.grey),
+                                                  ),
+                                                ],
                                               ),
-                                              const SizedBox(width: 8),
-                                              Text(
-                                                c.formattedTimeAgo,
-                                                style: const TextStyle(fontSize: 11, color: Colors.grey),
-                                              ),
+                                              const SizedBox(height: 4),
+                                              Text(c.text, style: const TextStyle(fontSize: 13, height: 1.3)),
                                             ],
                                           ),
-                                          const SizedBox(height: 4),
-                                          Text(c.text, style: const TextStyle(fontSize: 13, height: 1.3)),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                );
-                              },
+                                        ),
+                                      ],
+                                    );
+                                  },
+                                ),
+                    ),
+                    // YouTube interactive comment composer
+                    Container(
+                      padding: EdgeInsets.only(
+                        left: 14,
+                        right: 14,
+                        top: 8,
+                        bottom: MediaQuery.of(ctx).viewInsets.bottom + 10,
+                      ),
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF202020) : const Color(0xFFF9F9F9),
+                        border: Border(
+                          top: BorderSide(
+                            color: isDark ? const Color(0xFF333333) : const Color(0xFFE5E5E5),
+                            width: 0.5,
+                          ),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          CircleAvatar(
+                            radius: 16,
+                            backgroundColor: AppColors.primary,
+                            backgroundImage: (auth.isAuthenticated && auth.user?.avatarUrl != null)
+                                ? NetworkImage(auth.user!.avatarUrl!)
+                                : null,
+                            child: (auth.isAuthenticated && auth.user?.avatarUrl != null)
+                                ? null
+                                : Text(
+                                    auth.isAuthenticated && auth.user?.displayName.isNotEmpty == true
+                                        ? auth.user!.displayName[0].toUpperCase()
+                                        : 'G',
+                                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                                  ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: TextField(
+                              controller: _commentController,
+                              style: const TextStyle(fontSize: 13),
+                              decoration: InputDecoration(
+                                hintText: auth.isAuthenticated ? 'Add a comment...' : 'Add a public comment...',
+                                hintStyle: const TextStyle(fontSize: 13, color: Colors.grey),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(20),
+                                  borderSide: BorderSide.none,
+                                ),
+                                filled: true,
+                                fillColor: isDark ? const Color(0xFF2E2E2E) : const Color(0xFFEEEEEE),
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                              ),
                             ),
-                ),
-              ],
+                          ),
+                          const SizedBox(width: 8),
+                          IconButton(
+                            icon: const Icon(Icons.send_rounded, color: AppColors.primary),
+                            onPressed: () {
+                              final text = _commentController.text.trim();
+                              if (text.isEmpty) return;
+                              final newComment = Comment(
+                                id: 'c_${DateTime.now().millisecondsSinceEpoch}',
+                                authorName: auth.isAuthenticated && auth.user?.displayName.isNotEmpty == true
+                                    ? auth.user!.displayName
+                                    : 'GamaTube User',
+                                authorAvatarUrl: auth.user?.avatarUrl ?? '',
+                                text: text,
+                                publishedAt: DateTime.now(),
+                              );
+                              library.addComment(widget.video.id, newComment);
+                              _commentController.clear();
+                              setSheetState(() {
+                                _comments.insert(0, newComment);
+                              });
+                              setState(() {});
+                              FocusScope.of(ctx).unfocus();
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                );
+              },
             );
           },
         );

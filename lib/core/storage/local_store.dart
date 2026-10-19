@@ -10,6 +10,8 @@ abstract class LocalStore {
   Future<void> setJson(String key, Map<String, dynamic> data);
   Future<List<Map<String, dynamic>>?> getJsonList(String key);
   Future<void> setJsonList(String key, List<Map<String, dynamic>> list);
+  Future<List<String>?> getStringList(String key);
+  Future<void> setStringList(String key, List<String> list);
   Future<void> remove(String key);
   Future<void> clearAll();
   Future<int> estimateStorageBytes();
@@ -83,6 +85,16 @@ class SharedPreferencesLocalStore implements LocalStore {
   Future<void> setJsonList(String key, List<Map<String, dynamic>> list) async {
     final raw = jsonEncode(list);
     await _requirePrefs.setString(key, raw);
+  }
+
+  @override
+  Future<List<String>?> getStringList(String key) async {
+    return _requirePrefs.getStringList(key);
+  }
+
+  @override
+  Future<void> setStringList(String key, List<String> list) async {
+    await _requirePrefs.setStringList(key, list);
   }
 
   @override

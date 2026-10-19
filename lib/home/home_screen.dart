@@ -6,6 +6,7 @@ import '../providers/auth_provider.dart';
 import '../providers/home_provider.dart';
 import '../providers/library_provider.dart';
 import '../theme/app_colors.dart';
+import '../widgets/account_sheet.dart';
 import '../widgets/empty_state_view.dart';
 import '../widgets/error_state_view.dart';
 import '../widgets/gamatube_logo.dart';
@@ -72,22 +73,38 @@ class HomeScreen extends StatelessWidget {
             onPressed: onSearchTap,
           ),
           // User Avatar
+          // User Avatar
           Padding(
             padding: const EdgeInsets.only(right: 14, left: 4),
             child: GestureDetector(
-              onTap: onProfileTap,
-              child: CircleAvatar(
-                radius: 14,
-                backgroundColor: AppColors.primary,
-                child: Text(
-                  auth.user?.name.isNotEmpty == true ? auth.user!.name[0].toUpperCase() : 'G',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
+              onTap: onProfileTap ?? () => AccountSheet.show(context),
+              child: auth.isIncognito
+                  ? Container(
+                      width: 28,
+                      height: 28,
+                      decoration: const BoxDecoration(
+                        color: Colors.black,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.visibility_off_rounded, color: Colors.white, size: 16),
+                    )
+                  : CircleAvatar(
+                      radius: 14,
+                      backgroundColor: AppColors.primary,
+                      backgroundImage: auth.user?.avatarUrl != null
+                          ? NetworkImage(auth.user!.avatarUrl!)
+                          : null,
+                      child: auth.user?.avatarUrl == null
+                          ? Text(
+                              auth.user?.name.isNotEmpty == true ? auth.user!.name[0].toUpperCase() : 'G',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            )
+                          : null,
+                    ),
             ),
           ),
         ],
@@ -97,6 +114,38 @@ class HomeScreen extends StatelessWidget {
         onRefresh: () => home.loadHomeContent(refresh: true),
         child: CustomScrollView(
           slivers: [
+            // Incognito notice banner
+            if (auth.isIncognito)
+              SliverToBoxAdapter(
+                child: Container(
+                  color: Colors.black,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.visibility_off_rounded, color: Colors.white, size: 18),
+                      const SizedBox(width: 10),
+                      const Expanded(
+                        child: Text(
+                          "You're Incognito • Watch history is paused",
+                          style: TextStyle(color: Colors.white, fontSize: 12),
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: () => auth.toggleIncognito(),
+                        child: const Text(
+                          'Turn off',
+                          style: TextStyle(
+                            color: Color(0xFF3EA6FF),
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
             // YouTube-style Topic / Category Chips Bar
             SliverToBoxAdapter(
               child: Container(
