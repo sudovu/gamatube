@@ -30,11 +30,23 @@ class _ShortsScreenState extends State<ShortsScreen> {
   }
 
   bool _isLoadingMore = false;
+  int _shortsSeed = 0;
+  final Set<String> _seenShortIds = {};
 
   Future<void> _loadShorts({bool refresh = false}) async {
     final service = context.read<VideoPlatformService>();
     try {
-      final videos = await service.searchVideos('shorts trending');
+      final queries = [
+        'shorts viral trending',
+        'shorts funny comedy',
+        'shorts magic tricks',
+        'shorts sports moments',
+        'shorts satisfy craft asmr',
+      ];
+      final query = queries[_shortsSeed % queries.length];
+      if (refresh) _shortsSeed++;
+
+      final videos = await service.searchVideos(query);
       final filtered = videos.where((v) {
         final isShortDuration = v.duration != null && v.duration!.inSeconds <= 60;
         final hasShortTag = v.description.toLowerCase().contains('#shorts') ||
@@ -42,9 +54,19 @@ class _ShortsScreenState extends State<ShortsScreen> {
         return isShortDuration || hasShortTag;
       }).toList();
 
+      final seen = <String>{};
+      final deduplicated = filtered.where((v) => seen.add(v.id)).toList();
+
       if (mounted) {
         setState(() {
-          _shorts = filtered.isNotEmpty ? filtered : videos.take(10).toList();
+          if (refresh && _shorts.isNotEmpty) {
+            final currentIds = _shorts.map((v) => v.id).toSet();
+            final fresh = deduplicated.where((v) => !currentIds.contains(v.id)).toList();
+            _shorts = fresh.isNotEmpty ? fresh : deduplicated;
+          } else {
+            _shorts = deduplicated.isNotEmpty ? deduplicated : videos.take(10).toList();
+          }
+          _seenShortIds.addAll(_shorts.map((v) => v.id));
           _isLoading = false;
         });
       }
@@ -58,8 +80,12 @@ class _ShortsScreenState extends State<ShortsScreen> {
           return isShortDuration || hasShortTag;
         }).toList();
 
+        final seen = <String>{};
+        final deduplicated = filtered.where((v) => seen.add(v.id)).toList();
+
         setState(() {
-          _shorts = filtered.isNotEmpty ? filtered : fallback.take(5).toList();
+          _shorts = deduplicated.isNotEmpty ? deduplicated : fallback.take(5).toList();
+          _seenShortIds.addAll(_shorts.map((v) => v.id));
           _isLoading = false;
         });
       }
@@ -71,20 +97,42 @@ class _ShortsScreenState extends State<ShortsScreen> {
     _isLoadingMore = true;
     final service = context.read<VideoPlatformService>();
     try {
-      final more = await service.searchVideos('viral shorts funny tech');
+      _shortsSeed++;
+      final queries = [
+        'viral shorts funny tech',
+        'satisfying shorts moments',
+        'tricks sports shorts',
+        'viral challenges shorts',
+      ];
+      final q = queries[_shortsSeed % queries.length];
+      final more = await service.searchVideos(q);
+
       final filtered = more.where((v) {
         final isShortDuration = v.duration != null && v.duration!.inSeconds <= 60;
         final hasShortTag = v.description.toLowerCase().contains('#shorts') ||
             v.title.toLowerCase().contains('#shorts');
         return isShortDuration || hasShortTag;
-      }).where((v) => !_shorts.any((existing) => existing.id == v.id)).toList();
+      }).where((v) => !_shorts.any((existing) => existing.id == v.id) && !_seenShortIds.contains(v.id)).toList();
 
-      if (mounted && filtered.isNotEmpty) {
+      final seen = <String>{};
+      final uniqueNew = filtered.where((v) => seen.add(v.id)).toList();
+
+      if (mounted && uniqueNew.isNotEmpty) {
         setState(() {
-          _shorts.addAll(filtered);
+          _shorts.addAll(uniqueNew);
+          _seenShortIds.addAll(uniqueNew.map((v) => v.id));
           _isLoadingMore = false;
         });
       } else {
+        if (mounted && more.isNotEmpty) {
+          final anyNew = more.where((v) => !_shorts.any((existing) => existing.id == v.id)).toList();
+          if (anyNew.isNotEmpty) {
+            setState(() {
+              _shorts.addAll(anyNew.take(4));
+              _seenShortIds.addAll(anyNew.map((v) => v.id));
+            });
+          }
+        }
         _isLoadingMore = false;
       }
     } catch (_) {

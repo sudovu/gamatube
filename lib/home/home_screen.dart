@@ -37,7 +37,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _onScroll() {
     if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 400) {
-      context.read<HomeProvider>().loadMore();
+      final home = context.read<HomeProvider>();
+      if (!home.isLoading && !home.isLoadingMore) {
+        home.loadMore();
+      }
     }
   }
 
@@ -355,6 +358,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: Image.network(
                       video.thumbnailUrl,
                       fit: BoxFit.cover,
+                      cacheWidth: 360,
+                      filterQuality: FilterQuality.low,
                       errorBuilder: (_, _, _) => Container(
                         color: theme.colorScheme.surfaceContainerHighest,
                         child: const Icon(Icons.play_arrow_rounded),
@@ -519,6 +524,8 @@ class _HomeScreenState extends State<HomeScreen> {
                             child: Image.network(
                               short.thumbnailUrl,
                               fit: BoxFit.cover,
+                              cacheWidth: 280,
+                              filterQuality: FilterQuality.low,
                             ),
                           ),
                         ),

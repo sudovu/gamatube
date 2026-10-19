@@ -49,6 +49,8 @@ class VideoCard extends StatelessWidget {
                       child: Image.network(
                         video.thumbnailUrl,
                         fit: BoxFit.cover,
+                        cacheWidth: 640,
+                        filterQuality: FilterQuality.low,
                         errorBuilder: (_, _, _) => Center(
                           child: Icon(
                             Icons.play_circle_outline_rounded,
@@ -211,6 +213,8 @@ class VideoCard extends StatelessWidget {
                       child: Image.network(
                         video.thumbnailUrl,
                         fit: BoxFit.cover,
+                        cacheWidth: 320,
+                        filterQuality: FilterQuality.low,
                         errorBuilder: (_, _, _) => Container(
                           color: isDark ? const Color(0xFF272727) : const Color(0xFFEEEEEE),
                           child: const Icon(Icons.play_arrow_rounded),

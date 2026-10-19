@@ -319,6 +319,8 @@ class _SearchScreenState extends State<SearchScreen> {
                       child: Image.network(
                         video.thumbnailUrl,
                         fit: BoxFit.cover,
+                        cacheWidth: 480,
+                        filterQuality: FilterQuality.low,
                         errorBuilder: (_, _, _) => Container(
                           color: isDark ? Colors.grey[900] : Colors.grey[300],
                           child: const Icon(Icons.play_circle_outline, size: 40),
