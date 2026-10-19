@@ -111,6 +111,18 @@ class SettingsProvider extends ChangeNotifier {
     await _settingsRepository.saveSettings(_settings);
   }
 
+  Future<void> setBackgroundAudioEnabled(bool value) async {
+    _settings = _settings.copyWith(backgroundAudioEnabled: value);
+    notifyListeners();
+    await _settingsRepository.saveSettings(_settings);
+  }
+
+  Future<void> setPipEnabled(bool value) async {
+    _settings = _settings.copyWith(pipEnabled: value);
+    notifyListeners();
+    await _settingsRepository.saveSettings(_settings);
+  }
+
   Future<void> clearCache() async {
     _cacheManager.clear();
     notifyListeners();

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -9,6 +10,7 @@ import '../models/video.dart';
 import '../providers/auth_provider.dart';
 import '../providers/library_provider.dart';
 import '../providers/playback_provider.dart';
+import '../providers/settings_provider.dart';
 import '../services/ai_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/video_card.dart';
@@ -52,23 +54,102 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> with WidgetsBindi
     WidgetsBinding.instance.addObserver(this);
     _initPlayer();
     _loadMetadata();
+    _initMediaChannelHandlers();
+    _initPiPChannelHandlers();
+  }
+
+  void _initPiPChannelHandlers() {
+    _pipChannel.setMethodCallHandler((call) async {
+      if (call.method == 'onPiPModeChanged') {
+        final isInPiP = call.arguments['isInPiP'] as bool? ?? false;
+        if (mounted) {
+          setState(() {
+            _isPiPActive = isInPiP;
+          });
+        }
+      }
+    });
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
-    if (_isBackgroundAudioEnabled) {
+    final settings = context.read<SettingsProvider>().settings;
+    if (settings.backgroundAudioEnabled) {
       if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
-        // Automatically enter native PiP if video is active when leaving app
-        if (_isPiPActive) {
+        if (settings.pipEnabled && !_isPiPActive) {
           _enterNativePiP();
         }
-        // Force player to continue audio playback in background
         _controller.playVideo();
       } else if (state == AppLifecycleState.resumed) {
         _controller.playVideo();
       }
+    } else {
+      if (state == AppLifecycleState.paused) {
+        _controller.pauseVideo();
+        _mediaChannel.invokeMethod('stopPlayback').catchError((_) {});
+      }
     }
+  }
+
+  static const MethodChannel _mediaChannel = MethodChannel('com.sudovu.gamatube/media');
+  Timer? _mediaSyncTimer;
+
+  Future<void> _initMediaChannelHandlers() async {
+    _mediaChannel.setMethodCallHandler((call) async {
+      switch (call.method) {
+        case 'onPlayClicked':
+          _controller.playVideo();
+          break;
+        case 'onPauseClicked':
+          _controller.pauseVideo();
+          break;
+        case 'onSeekTo':
+          final posMs = call.arguments['positionMs'] as int? ?? 0;
+          _controller.seekTo(seconds: (posMs / 1000).toDouble());
+          break;
+        case 'onNextClicked':
+          if (_relatedVideos.isNotEmpty) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (_) => VideoPlayerScreen(video: _relatedVideos.first),
+              ),
+            );
+          }
+          break;
+        case 'onPreviousClicked':
+          _controller.seekTo(seconds: 0);
+          break;
+      }
+    });
+
+    final durMs = (widget.video.duration?.inMilliseconds ?? (5 * 60 * 1000));
+    try {
+      await _mediaChannel.invokeMethod('startPlayback', {
+        'title': widget.video.title,
+        'author': widget.video.channelTitle,
+        'durationMs': durMs,
+        'positionMs': 0,
+        'isPlaying': true,
+      });
+    } catch (_) {}
+
+    _mediaSyncTimer = Timer.periodic(const Duration(seconds: 1), (_) async {
+      if (!mounted) return;
+      try {
+        final posSeconds = await _controller.currentTime;
+        final durSeconds = await _controller.duration;
+        final durMs = durSeconds > 0
+            ? (durSeconds * 1000).toInt()
+            : (widget.video.duration?.inMilliseconds ?? (5 * 60 * 1000));
+        await _mediaChannel.invokeMethod('updatePlaybackState', {
+          'positionMs': (posSeconds * 1000).toInt(),
+          'durationMs': durMs,
+          'isPlaying': true,
+        });
+      } catch (_) {}
+    });
   }
 
   Future<void> _enterNativePiP() async {
@@ -89,8 +170,10 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> with WidgetsBindi
   void didChangeDependencies() {
     super.didChangeDependencies();
     final library = context.read<LibraryProvider>();
+    final settings = context.read<SettingsProvider>();
     _isLiked = library.isVideoLiked(widget.video.id);
     _isSubscribed = library.isChannelSubscribed(widget.video.channelTitle);
+    _isBackgroundAudioEnabled = settings.settings.backgroundAudioEnabled;
   }
 
   void _initPlayer() {
@@ -159,6 +242,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> with WidgetsBindi
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _mediaSyncTimer?.cancel();
+    _mediaChannel.invokeMethod('stopPlayback').catchError((_) {});
     _controller.close();
     _commentController.dispose();
     super.dispose();
@@ -166,6 +251,21 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> with WidgetsBindi
 
   @override
   Widget build(BuildContext context) {
+    if (_isPiPActive) {
+      return Scaffold(
+        backgroundColor: Colors.black,
+        body: Center(
+          child: AspectRatio(
+            aspectRatio: 16 / 9,
+            child: YoutubePlayer(
+              controller: _controller,
+              aspectRatio: 16 / 9,
+            ),
+          ),
+        ),
+      );
+    }
+
     final playback = context.watch<PlaybackProvider>();
     final library = context.watch<LibraryProvider>();
     final theme = Theme.of(context);

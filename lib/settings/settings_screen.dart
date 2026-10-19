@@ -90,6 +90,18 @@ class SettingsScreen extends StatelessWidget {
           // 3. Playback Section
           _buildSectionHeader(context, 'Playback'),
           SwitchListTile(
+            title: const Text('Background Audio Playback'),
+            subtitle: const Text('Keep audio streaming in notification shade when app is minimized or phone is locked'),
+            value: settings.settings.backgroundAudioEnabled,
+            onChanged: (val) => settings.setBackgroundAudioEnabled(val),
+          ),
+          SwitchListTile(
+            title: const Text('Picture-in-Picture (PiP)'),
+            subtitle: const Text('Automatically enter floating mini-player when exiting app during video playback'),
+            value: settings.settings.pipEnabled,
+            onChanged: (val) => settings.setPipEnabled(val),
+          ),
+          SwitchListTile(
             title: const Text('Autoplay Next'),
             subtitle: const Text('Automatically play recommended video upon completion'),
             value: settings.settings.autoplay,

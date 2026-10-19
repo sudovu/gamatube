@@ -23,6 +23,8 @@ class AppSettings {
   final bool analyticsOptIn;
   final bool crashReportingOptIn;
   final bool notificationsEnabled;
+  final bool backgroundAudioEnabled;
+  final bool pipEnabled;
   final String? customApiKey;
 
   const AppSettings({
@@ -40,6 +42,8 @@ class AppSettings {
     this.analyticsOptIn = false,
     this.crashReportingOptIn = false,
     this.notificationsEnabled = false,
+    this.backgroundAudioEnabled = true,
+    this.pipEnabled = true,
     this.customApiKey,
   });
 
@@ -59,6 +63,8 @@ class AppSettings {
       'analyticsOptIn': analyticsOptIn,
       'crashReportingOptIn': crashReportingOptIn,
       'notificationsEnabled': notificationsEnabled,
+      'backgroundAudioEnabled': backgroundAudioEnabled,
+      'pipEnabled': pipEnabled,
       'customApiKey': customApiKey,
     };
   }
@@ -93,6 +99,8 @@ class AppSettings {
       analyticsOptIn: json['analyticsOptIn'] as bool? ?? false,
       crashReportingOptIn: json['crashReportingOptIn'] as bool? ?? false,
       notificationsEnabled: json['notificationsEnabled'] as bool? ?? false,
+      backgroundAudioEnabled: json['backgroundAudioEnabled'] as bool? ?? true,
+      pipEnabled: json['pipEnabled'] as bool? ?? true,
       customApiKey: json['customApiKey'] as String?,
     );
   }
@@ -124,6 +132,8 @@ class AppSettings {
     bool? analyticsOptIn,
     bool? crashReportingOptIn,
     bool? notificationsEnabled,
+    bool? backgroundAudioEnabled,
+    bool? pipEnabled,
     String? customApiKey,
   }) {
     return AppSettings(
@@ -141,6 +151,8 @@ class AppSettings {
       analyticsOptIn: analyticsOptIn ?? this.analyticsOptIn,
       crashReportingOptIn: crashReportingOptIn ?? this.crashReportingOptIn,
       notificationsEnabled: notificationsEnabled ?? this.notificationsEnabled,
+      backgroundAudioEnabled: backgroundAudioEnabled ?? this.backgroundAudioEnabled,
+      pipEnabled: pipEnabled ?? this.pipEnabled,
       customApiKey: customApiKey ?? this.customApiKey,
     );
   }
