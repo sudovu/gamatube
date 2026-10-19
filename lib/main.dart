@@ -262,7 +262,7 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
         },
         onProfileTap: () => AccountSheet.show(context),
       ),
-      const ShortsScreen(),
+      ShortsScreen(isScreenActive: _currentIndex == 1),
       const SubscriptionsScreen(),
       const LibraryScreen(),
       const SearchScreen(),

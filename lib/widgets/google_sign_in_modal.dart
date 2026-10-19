@@ -301,6 +301,42 @@ class _GoogleSignInModalState extends State<GoogleSignInModal> {
               const SizedBox(height: 14),
             ],
 
+            // Quick Google Sign-In Action Button
+            FilledButton.icon(
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFF1A73E8),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                elevation: 0,
+              ),
+              onPressed: _isLoading ? null : () => _tryNativeGoogleSignIn(auth, library),
+              icon: _isLoading
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Icon(Icons.account_circle_rounded, size: 20),
+              label: const Text(
+                'Continue with Google Account',
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            Row(
+              children: [
+                Expanded(child: Divider(color: isDark ? Colors.white24 : Colors.black12)),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  child: Text('or sign in with Gmail', style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+                ),
+                Expanded(child: Divider(color: isDark ? Colors.white24 : Colors.black12)),
+              ],
+            ),
+            const SizedBox(height: 16),
+
             // Direct Gmail Input Fields
             TextField(
               controller: _emailController,
@@ -309,7 +345,7 @@ class _GoogleSignInModalState extends State<GoogleSignInModal> {
               style: const TextStyle(fontSize: 14),
               decoration: InputDecoration(
                 labelText: 'Gmail Address',
-                hintText: 'yourname@gmail.com',
+                hintText: 'username@gmail.com',
                 prefixIcon: const Icon(Icons.mail_outline_rounded, size: 20),
                 filled: true,
                 fillColor: isDark ? const Color(0xFF282828) : const Color(0xFFF1F3F4),
@@ -326,8 +362,8 @@ class _GoogleSignInModalState extends State<GoogleSignInModal> {
               textCapitalization: TextCapitalization.words,
               style: const TextStyle(fontSize: 14),
               decoration: InputDecoration(
-                labelText: 'Display Name (optional)',
-                hintText: 'e.g. John Doe',
+                labelText: 'Name (optional)',
+                hintText: 'e.g. Gautam Bhuwan',
                 prefixIcon: const Icon(Icons.person_outline_rounded, size: 20),
                 filled: true,
                 fillColor: isDark ? const Color(0xFF282828) : const Color(0xFFF1F3F4),
@@ -338,43 +374,19 @@ class _GoogleSignInModalState extends State<GoogleSignInModal> {
                 contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               ),
             ),
-            const SizedBox(height: 18),
+            const SizedBox(height: 16),
 
             // Submit Button
-            FilledButton(
-              style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFF1A73E8),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 14),
+            OutlinedButton(
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 13),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                elevation: 0,
+                side: BorderSide(color: isDark ? Colors.white24 : Colors.black26),
               ),
               onPressed: _isLoading ? null : () => _submitDirectGmail(auth, library),
-              child: _isLoading
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                    )
-                  : const Text(
-                      'Sign In',
-                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
-                    ),
-            ),
-            const SizedBox(height: 10),
-
-            // Native System Chooser Option
-            OutlinedButton.icon(
-              style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                side: BorderSide(color: isDark ? Colors.white24 : Colors.black12),
-              ),
-              onPressed: _isLoading ? null : () => _tryNativeGoogleSignIn(auth, library),
-              icon: const Icon(Icons.account_circle_rounded, size: 18),
-              label: const Text(
-                'Try Google One-Tap Chooser',
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+              child: const Text(
+                'Sign In with Gmail Address',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
               ),
             ),
           ],

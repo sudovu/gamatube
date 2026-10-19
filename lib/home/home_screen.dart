@@ -111,9 +111,18 @@ class HomeScreen extends StatelessWidget {
       ),
       body: RefreshIndicator(
         color: AppColors.primary,
-        onRefresh: () => home.loadHomeContent(refresh: true),
+        displacement: 40,
+        edgeOffset: 0,
+        onRefresh: () async {
+          await Future.wait([
+            home.loadHomeContent(refresh: true),
+            library.loadLibraryData(),
+          ]);
+        },
         child: CustomScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
+          physics: const AlwaysScrollableScrollPhysics(
+            parent: BouncingScrollPhysics(),
+          ),
           slivers: [
             // Incognito notice banner
             if (auth.isIncognito)

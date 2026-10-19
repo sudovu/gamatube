@@ -59,12 +59,16 @@ class LibraryScreen extends StatelessWidget {
       ),
       body: RefreshIndicator(
         color: AppColors.primary,
+        displacement: 40,
+        edgeOffset: 0,
         onRefresh: () async {
           await library.loadLibraryData();
           await auth.refresh();
         },
         child: ListView(
-          physics: const AlwaysScrollableScrollPhysics(),
+          physics: const AlwaysScrollableScrollPhysics(
+            parent: BouncingScrollPhysics(),
+          ),
           padding: const EdgeInsets.symmetric(vertical: 8),
           children: [
           // Profile Header Row (YouTube Modern "You" Tab)

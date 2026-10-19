@@ -8,7 +8,8 @@ import '../search/search_screen.dart';
 import '../theme/app_colors.dart';
 
 class ShortsScreen extends StatefulWidget {
-  const ShortsScreen({super.key});
+  final bool isScreenActive;
+  const ShortsScreen({super.key, this.isScreenActive = false});
 
   @override
   State<ShortsScreen> createState() => _ShortsScreenState();
@@ -114,7 +115,7 @@ class _ShortsScreenState extends State<ShortsScreen> {
             return _ShortItemView(
               key: ValueKey(video.id),
               video: video,
-              isActive: _currentPage == index,
+              isActive: widget.isScreenActive && _currentPage == index,
               isLiked: isLiked,
               isSubscribed: isSubscribed,
               onToggleLike: () {

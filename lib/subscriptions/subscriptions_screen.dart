@@ -143,12 +143,16 @@ class _SubscriptionsScreenState extends State<SubscriptionsScreen> {
             )
           : RefreshIndicator(
               color: AppColors.primary,
+              displacement: 40,
+              edgeOffset: 0,
               onRefresh: () async {
                 await home.loadFeed();
                 await library.loadLibraryData();
               },
               child: CustomScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
+                physics: const AlwaysScrollableScrollPhysics(
+                  parent: BouncingScrollPhysics(),
+                ),
                 slivers: [
                   // Horizontal Channels Avatar Rail
                   SliverToBoxAdapter(

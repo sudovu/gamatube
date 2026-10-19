@@ -87,7 +87,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final playback = context.read<PlaybackProvider>();
+      final library = context.read<LibraryProvider>();
       playback.loadVideo(widget.video);
+      library.recordWatch(widget.video);
     });
   }
 
@@ -248,7 +250,11 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
               IconButton(
                 icon: const Icon(Icons.arrow_back_rounded, color: Colors.white, size: 22),
                 tooltip: 'Back',
-                onPressed: () => Navigator.pop(context),
+                onPressed: () async {
+                  await context.read<LibraryProvider>().loadLibraryData();
+                  if (!mounted) return;
+                  Navigator.pop(context);
+                },
               ),
               const Spacer(),
               // Rewind 10s

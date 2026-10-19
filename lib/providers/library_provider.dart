@@ -170,6 +170,21 @@ class LibraryProvider extends ChangeNotifier {
   }
 
   // Watch History actions
+  Future<void> recordWatch(Video video, [Duration position = const Duration(seconds: 1), Duration? totalDuration]) async {
+    final dur = totalDuration ?? video.duration ?? const Duration(minutes: 5);
+    await _historyRepository.addToHistory(video, position, dur);
+    final pct = dur.inSeconds > 0 ? (position.inSeconds / dur.inSeconds).clamp(0.0, 1.0) : 0.0;
+    _history.removeWhere((i) => i.video.id == video.id);
+    _history.insert(0, WatchHistoryItem(
+      video: video,
+      watchedAt: DateTime.now(),
+      position: position,
+      duration: dur,
+      completionPercentage: pct,
+    ));
+    notifyListeners();
+  }
+
   Future<void> removeFromHistory(String videoId) async {
     await _historyRepository.removeFromHistory(videoId);
     _history.removeWhere((i) => i.video.id == videoId);
