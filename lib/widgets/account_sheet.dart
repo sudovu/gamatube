@@ -5,6 +5,7 @@ import '../models/user_profile.dart';
 import '../providers/auth_provider.dart';
 import '../settings/settings_screen.dart';
 import '../theme/app_colors.dart';
+import 'google_sign_in_modal.dart';
 
 class AccountSheet extends StatelessWidget {
   const AccountSheet({super.key});
@@ -207,10 +208,7 @@ class AccountSheet extends StatelessWidget {
                 const SizedBox(height: 4),
                 GestureDetector(
                   onTap: () {
-                    launchUrl(
-                      Uri.parse('https://myaccount.google.com/'),
-                      mode: LaunchMode.externalApplication,
-                    );
+                    _showManageAccountDialog(context, user, auth);
                   },
                   child: const Text(
                     'Manage your Google Account',
@@ -295,24 +293,25 @@ class AccountSheet extends StatelessWidget {
             children: [
               Expanded(
                 child: FilledButton.icon(
-                  onPressed: () async {
+                  onPressed: () {
                     Navigator.pop(context);
-                    await auth.signIn();
+                    GoogleSignInModal.show(context);
                   },
                   style: FilledButton.styleFrom(
-                    backgroundColor: AppColors.primary,
+                    backgroundColor: const Color(0xFF1A73E8),
+                    foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 11),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                   ),
                   icon: const Icon(Icons.login_rounded, size: 18),
-                  label: const Text('Continue with Google', style: TextStyle(fontWeight: FontWeight.bold)),
+                  label: const Text('Sign in with Google', style: TextStyle(fontWeight: FontWeight.bold)),
                 ),
               ),
               const SizedBox(width: 10),
               OutlinedButton(
                 onPressed: () {
                   Navigator.pop(context);
-                  showAddGmailDialog(context);
+                  GoogleSignInModal.show(context);
                 },
                 style: OutlinedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
@@ -419,7 +418,7 @@ class AccountSheet extends StatelessWidget {
                   title: const Text('Add Google / Gmail account', style: TextStyle(fontWeight: FontWeight.w600)),
                   onTap: () {
                     Navigator.pop(ctx);
-                    showAddGmailDialog(context);
+                    GoogleSignInModal.show(context);
                   },
                 ),
               ],
@@ -431,86 +430,90 @@ class AccountSheet extends StatelessWidget {
   }
 
   static void showAddGmailDialog(BuildContext context) {
-    final emailController = TextEditingController(text: 'vhuwonmathers12@gmail.com');
-    final nameController = TextEditingController(text: 'Vhuwon Mathers');
+    GoogleSignInModal.show(context);
+  }
 
-    showDialog(
+  static void _showManageAccountDialog(BuildContext context, UserProfile user, AuthProvider auth) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    showModalBottomSheet(
       context: context,
+      backgroundColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (ctx) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: Row(
-            children: [
-              Container(
-                width: 32,
-                height: 32,
-                decoration: const BoxDecoration(
-                  color: AppColors.primary,
-                  shape: BoxShape.circle,
-                ),
-                child: const Center(
-                  child: Text(
-                    'G',
-                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Container(
+                  width: 36,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withAlpha(100),
+                    borderRadius: BorderRadius.circular(2),
                   ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              const Text('Google Account Sign-In', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
-            ],
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Enter your Gmail address to sync your YouTube profile, channel, subscriptions, and playlists seamlessly.',
-                style: TextStyle(fontSize: 12, color: Colors.grey),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: emailController,
-                keyboardType: TextInputType.emailAddress,
-                decoration: const InputDecoration(
-                  labelText: 'Gmail / Google Address',
-                  hintText: 'yourname@gmail.com',
-                  prefixIcon: Icon(Icons.mail_outline_rounded),
-                  border: OutlineInputBorder(),
+                CircleAvatar(
+                  radius: 36,
+                  backgroundColor: AppColors.primary,
+                  backgroundImage: user.avatarUrl != null ? NetworkImage(user.avatarUrl!) : null,
+                  child: user.avatarUrl == null
+                      ? Text(
+                          user.name.isNotEmpty ? user.name[0].toUpperCase() : 'G',
+                          style: const TextStyle(fontSize: 30, color: Colors.white, fontWeight: FontWeight.bold),
+                        )
+                      : null,
                 ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: nameController,
-                decoration: const InputDecoration(
-                  labelText: 'Display Name (Channel Name)',
-                  hintText: 'Your Full Name',
-                  prefixIcon: Icon(Icons.person_outline_rounded),
-                  border: OutlineInputBorder(),
+                const SizedBox(height: 12),
+                Text(
+                  user.name,
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
-              ),
-            ],
+                const SizedBox(height: 2),
+                Text(
+                  user.email,
+                  style: TextStyle(fontSize: 13, color: isDark ? Colors.white70 : Colors.black87),
+                ),
+                const SizedBox(height: 2),
+                Container(
+                  margin: const EdgeInsets.only(top: 6),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF2A2A2A) : const Color(0xFFEEEEEE),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    user.displayHandle,
+                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF3EA6FF)),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                const Divider(),
+                ListTile(
+                  leading: const Icon(Icons.switch_account_outlined),
+                  title: const Text('Switch or add account'),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    GoogleSignInModal.show(context);
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.logout_rounded, color: Colors.redAccent),
+                  title: const Text('Sign out of GamaTube', style: TextStyle(color: Colors.redAccent)),
+                  onTap: () async {
+                    Navigator.pop(ctx);
+                    await auth.signOut();
+                  },
+                ),
+              ],
+            ),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
-              onPressed: () {
-                final email = emailController.text.trim();
-                final name = nameController.text.trim();
-                if (email.isNotEmpty) {
-                  context.read<AuthProvider>().signInWithGmail(
-                    email,
-                    displayName: name.isNotEmpty ? name : null,
-                  );
-                }
-                Navigator.pop(ctx);
-              },
-              child: const Text('Sign In'),
-            ),
-          ],
         );
       },
     );

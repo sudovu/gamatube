@@ -26,6 +26,10 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> refresh() async {
+    await _init();
+  }
+
   Future<bool> signIn() async {
     _isLoading = true;
     _errorMessage = null;

@@ -123,23 +123,30 @@ class _SearchScreenState extends State<SearchScreen> {
       );
     }
 
-    return ListView.builder(
-      itemCount: search.searchResults.length,
-      itemBuilder: (context, index) {
-        final video = search.searchResults[index];
-        return VideoCard(
-          video: video,
-          isCompact: true,
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => VideoPlayerScreen(video: video),
-              ),
-            );
-          },
-        );
+    return RefreshIndicator(
+      color: AppColors.primary,
+      onRefresh: () async {
+        await search.executeSearch(search.currentQuery);
       },
+      child: ListView.builder(
+        physics: const AlwaysScrollableScrollPhysics(),
+        itemCount: search.searchResults.length,
+        itemBuilder: (context, index) {
+          final video = search.searchResults[index];
+          return VideoCard(
+            video: video,
+            isCompact: true,
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => VideoPlayerScreen(video: video),
+                ),
+              );
+            },
+          );
+        },
+      ),
     );
   }
 

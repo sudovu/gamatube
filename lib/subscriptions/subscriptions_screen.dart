@@ -8,6 +8,7 @@ import '../providers/library_provider.dart';
 import '../theme/app_colors.dart';
 import '../widgets/account_sheet.dart';
 import '../widgets/empty_state_view.dart';
+import '../widgets/google_sign_in_modal.dart';
 import '../widgets/video_card.dart';
 
 class SubscriptionsScreen extends StatefulWidget {
@@ -118,20 +119,20 @@ class _SubscriptionsScreenState extends State<SubscriptionsScreen> {
                 children: [
                   FilledButton.icon(
                     style: FilledButton.styleFrom(
-                      backgroundColor: isDark ? Colors.white : Colors.black,
-                      foregroundColor: isDark ? Colors.black : Colors.white,
+                      backgroundColor: const Color(0xFF1A73E8),
+                      foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                     ),
-                    onPressed: () => auth.signIn(),
+                    onPressed: () => GoogleSignInModal.show(context),
                     icon: const Icon(Icons.login_rounded, size: 18),
                     label: const Text('Sign in with Google', style: TextStyle(fontWeight: FontWeight.bold)),
                   ),
                   const SizedBox(height: 8),
                   TextButton.icon(
-                    onPressed: () => AccountSheet.showAddGmailDialog(context),
+                    onPressed: () => GoogleSignInModal.show(context),
                     icon: const Icon(Icons.mail_outline_rounded, size: 16),
-                    label: const Text('Or add Gmail address directly'),
+                    label: const Text('Or enter your Gmail address'),
                   ),
                 ],
               ),
@@ -143,6 +144,7 @@ class _SubscriptionsScreenState extends State<SubscriptionsScreen> {
                 await library.loadLibraryData();
               },
               child: CustomScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
                 slivers: [
                   // Horizontal Channels Avatar Rail
                   SliverToBoxAdapter(

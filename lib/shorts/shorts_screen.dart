@@ -92,14 +92,19 @@ class _ShortsScreenState extends State<ShortsScreen> {
 
     return Scaffold(
       backgroundColor: Colors.black,
-      body: PageView.builder(
-        controller: _pageController,
-        scrollDirection: Axis.vertical,
-        itemCount: _shorts.length,
-        itemBuilder: (context, index) {
-          final video = _shorts[index];
-          return _buildShortPage(context, video);
-        },
+      body: RefreshIndicator(
+        color: AppColors.primary,
+        onRefresh: _loadShorts,
+        child: PageView.builder(
+          controller: _pageController,
+          physics: const AlwaysScrollableScrollPhysics(),
+          scrollDirection: Axis.vertical,
+          itemCount: _shorts.length,
+          itemBuilder: (context, index) {
+            final video = _shorts[index];
+            return _buildShortPage(context, video);
+          },
+        ),
       ),
     );
   }

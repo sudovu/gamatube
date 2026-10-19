@@ -1,9 +1,5 @@
 import 'dart:convert';
-import 'dart:math';
-import 'package:crypto/crypto.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'package:url_launcher/url_launcher.dart';
-import '../core/constants/api_constants.dart';
 import '../core/constants/app_constants.dart';
 import '../core/logging/app_logger.dart';
 import '../core/storage/local_store.dart';
@@ -27,7 +23,6 @@ abstract class AuthService {
 
 class GoogleOAuthAuthService implements AuthService {
   final LocalStore _localStore;
-  final String? _clientId;
   UserProfile? _currentUser;
   final GoogleSignIn _googleSignIn;
 
@@ -35,7 +30,6 @@ class GoogleOAuthAuthService implements AuthService {
     required LocalStore localStore,
     String? clientId,
   })  : _localStore = localStore,
-        _clientId = clientId,
         _googleSignIn = GoogleSignIn(
           clientId: clientId,
           scopes: [
@@ -63,7 +57,7 @@ class GoogleOAuthAuthService implements AuthService {
 
   @override
   Future<UserProfile?> signIn() async {
-    AppLogger.info('Initiating Google Sign-In with Gmail account');
+    AppLogger.info('Initiating Google Sign-In');
 
     try {
       // 1. Try official native Google Sign-In (displays native Google account chooser on mobile/web)
@@ -90,65 +84,12 @@ class GoogleOAuthAuthService implements AuthService {
         return profile;
       }
     } catch (e, st) {
-      AppLogger.warning('Native GoogleSignIn threw, checking OAuth/local fallback: $e', st);
+      AppLogger.warning('Native GoogleSignIn threw or was unavailable: $e', st);
     }
 
-    // 2. Fallback to OAuth PKCE flow if clientId is configured
-    final clientId = _clientId;
-    if (clientId != null && clientId.isNotEmpty) {
-      try {
-        final state = _generateRandomString(32);
-        final codeVerifier = _generateRandomString(64);
-        final codeChallenge = base64Url
-            .encode(sha256.convert(ascii.encode(codeVerifier)).bytes)
-            .replaceAll('=', '');
-
-        const redirectUri = 'http://localhost:8080/callback';
-        final authUri = Uri.parse(ApiConstants.googleAuthEndpoint).replace(
-          queryParameters: {
-            'client_id': clientId,
-            'redirect_uri': redirectUri,
-            'response_type': 'code',
-            'scope': ApiConstants.defaultScopes.join(' '),
-            'state': state,
-            'code_challenge': codeChallenge,
-            'code_challenge_method': 'S256',
-          },
-        );
-
-        if (await canLaunchUrl(authUri)) {
-          await launchUrl(authUri, mode: LaunchMode.externalApplication);
-        }
-        return _currentUser;
-      } catch (e, st) {
-        AppLogger.error('OAuth launch error', e, st);
-      }
-    }
-
-    // 3. Fallback: Check if there is already a saved Gmail account
-    final saved = await getSavedAccounts();
-    if (saved.isNotEmpty) {
-      final lastUser = saved.first;
-      _currentUser = lastUser;
-      await _localStore.setJson(AppConstants.keyAuthSession, lastUser.toJson());
-      return lastUser;
-    }
-
-    // 4. Default verified primary Google/Gmail account for seamless out-of-the-box YouTube experience
-    final defaultUser = UserProfile(
-      id: 'google_user_vhuwon',
-      name: 'Vhuwon Mathers',
-      email: 'vhuwonmathers12@gmail.com',
-      avatarUrl: _generateGoogleAvatar('Vhuwon Mathers'),
-      handle: '@vhuwonmathers',
-      accessToken: 'gamatube_google_access_${DateTime.now().millisecondsSinceEpoch}',
-      tokenExpiresAt: DateTime.now().add(const Duration(days: 90)),
-    );
-
-    _currentUser = defaultUser;
-    await _saveSessionAndAccount(defaultUser);
-    AppLogger.info('Signed in with Google user: ${defaultUser.email}');
-    return defaultUser;
+    // If native sign-in is cancelled or unavailable (e.g. Missing SHA-1 in Play Services),
+    // return null so caller can present the Google Account sign-in sheet cleanly.
+    return null;
   }
 
   @override
@@ -273,11 +214,5 @@ class GoogleOAuthAuthService implements AuthService {
     final colors = ['1a73e8', 'd93025', '188038', 'f29900', 'a142f4', 'e37400'];
     final color = colors[seed.hashCode.abs() % colors.length];
     return 'https://ui-avatars.com/api/?name=${Uri.encodeComponent(seed)}&background=$color&color=fff&size=192&bold=true';
-  }
-
-  String _generateRandomString(int length) {
-    final rand = Random.secure();
-    final values = List<int>.generate(length, (i) => rand.nextInt(256));
-    return base64Url.encode(values).substring(0, length);
   }
 }

@@ -30,6 +30,12 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   bool _isDisliked = false;
   bool _isSubscribed = false;
   bool _isLoadingComments = true;
+  bool _isAutoplayEnabled = true;
+  bool _isLooping = false;
+  bool _isCaptionsEnabled = true;
+  double _playbackSpeed = 1.0;
+  String _selectedQuality = 'Auto (1080p)';
+  String? _doubleTapSide;
   List<Comment> _comments = [];
   List<Video> _relatedVideos = [];
   String? _aiSummary;
@@ -185,6 +191,22 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     );
   }
 
+  void _triggerDoubleTapSeek(String side, PlaybackProvider playback) {
+    if (side == 'left') {
+      playback.seekRewind(10);
+      _controller.seekTo(seconds: (playback.currentPosition.inSeconds.toDouble() - 10).clamp(0, double.infinity));
+    } else {
+      playback.seekForward(10);
+      _controller.seekTo(seconds: playback.currentPosition.inSeconds.toDouble() + 10);
+    }
+    setState(() => _doubleTapSide = side);
+    Future.delayed(const Duration(milliseconds: 700), () {
+      if (mounted && _doubleTapSide == side) {
+        setState(() => _doubleTapSide = null);
+      }
+    });
+  }
+
   Widget _buildPlayerView(PlaybackProvider playback) {
     return Column(
       children: [
@@ -216,12 +238,152 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
               ],
             ),
           ),
-        AspectRatio(
-          aspectRatio: 16 / 9,
-          child: YoutubePlayer(
-            controller: _controller,
-            aspectRatio: 16 / 9,
-          ),
+        Stack(
+          alignment: Alignment.center,
+          children: [
+            AspectRatio(
+              aspectRatio: 16 / 9,
+              child: YoutubePlayer(
+                controller: _controller,
+                aspectRatio: 16 / 9,
+              ),
+            ),
+            // Top Bar Quick Controls Overlay
+            Positioned(
+              top: 4,
+              left: 4,
+              right: 4,
+              child: Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back_rounded, color: Colors.white, size: 22),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                  const Spacer(),
+                  // Autoplay switch
+                  Tooltip(
+                    message: _isAutoplayEnabled ? 'Autoplay is on' : 'Autoplay is off',
+                    child: IconButton(
+                      icon: Icon(
+                        _isAutoplayEnabled ? Icons.play_circle_filled_rounded : Icons.play_circle_outline_rounded,
+                        color: _isAutoplayEnabled ? Colors.white : Colors.white60,
+                        size: 20,
+                      ),
+                      onPressed: () {
+                        setState(() => _isAutoplayEnabled = !_isAutoplayEnabled);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(_isAutoplayEnabled ? 'Autoplay is on' : 'Autoplay is off'),
+                            duration: const Duration(seconds: 1),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  // Captions toggle
+                  Tooltip(
+                    message: 'Subtitles/CC',
+                    child: IconButton(
+                      icon: Icon(
+                        _isCaptionsEnabled ? Icons.closed_caption_rounded : Icons.closed_caption_outlined,
+                        color: _isCaptionsEnabled ? Colors.white : Colors.white60,
+                        size: 22,
+                      ),
+                      onPressed: () {
+                        setState(() => _isCaptionsEnabled = !_isCaptionsEnabled);
+                      },
+                    ),
+                  ),
+                  // Settings Gear (Quality, Speed, Loop, Sleep Timer, Stats)
+                  Tooltip(
+                    message: 'Settings',
+                    child: IconButton(
+                      icon: const Icon(Icons.settings_outlined, color: Colors.white, size: 20),
+                      onPressed: () => _showPlayerSettings(context),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Double-Tap Seek Gestures Overlay
+            Positioned.fill(
+              child: Row(
+                children: [
+                  // Left 40% (Seek Backward 10s)
+                  Expanded(
+                    flex: 4,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.translucent,
+                      onDoubleTap: () => _triggerDoubleTapSeek('left', playback),
+                      child: Container(
+                        alignment: Alignment.center,
+                        child: _doubleTapSide == 'left'
+                            ? Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withAlpha(170),
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: const Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.fast_rewind_rounded, color: Colors.white, size: 20),
+                                    SizedBox(width: 6),
+                                    Text('10 seconds', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                                  ],
+                                ),
+                              )
+                            : null,
+                      ),
+                    ),
+                  ),
+                  // Center 20% (Tap to play/pause)
+                  Expanded(
+                    flex: 2,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.translucent,
+                      onTap: () {
+                        playback.togglePlayPause();
+                        if (playback.isPlaying) {
+                          _controller.playVideo();
+                        } else {
+                          _controller.pauseVideo();
+                        }
+                      },
+                    ),
+                  ),
+                  // Right 40% (Seek Forward 10s)
+                  Expanded(
+                    flex: 4,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.translucent,
+                      onDoubleTap: () => _triggerDoubleTapSeek('right', playback),
+                      child: Container(
+                        alignment: Alignment.center,
+                        child: _doubleTapSide == 'right'
+                            ? Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withAlpha(170),
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: const Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text('10 seconds', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                                    SizedBox(width: 6),
+                                    Icon(Icons.fast_forward_rounded, color: Colors.white, size: 20),
+                                  ],
+                                ),
+                              )
+                            : null,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ],
     );
@@ -499,11 +661,16 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                   isDark: isDark,
                   icon: Icons.share_outlined,
                   label: 'Share',
-                  onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Video link copied: https://youtu.be/${widget.video.id}')),
-                    );
-                  },
+                  onTap: () => _showShareModal(context),
+                ),
+                const SizedBox(width: 8),
+
+                // Remix Pill
+                _buildActionPill(
+                  isDark: isDark,
+                  icon: Icons.content_cut_rounded,
+                  label: 'Remix',
+                  onTap: () => _showRemixSheet(context),
                 ),
                 const SizedBox(width: 8),
 
@@ -526,19 +693,12 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                 ),
                 const SizedBox(width: 8),
 
-                // Save to Watch Later Pill
+                // Save to Playlist Pill
                 _buildActionPill(
                   isDark: isDark,
                   icon: Icons.playlist_add_rounded,
                   label: 'Save',
-                  onTap: () async {
-                    await library.addToWatchLater(widget.video);
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Saved to Watch Later')),
-                      );
-                    }
-                  },
+                  onTap: () => _showSavePlaylistModal(context, library),
                 ),
               ],
             ),
@@ -946,6 +1106,687 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  void _showPlayerSettings(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: isDark ? const Color(0xFF212121) : Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                margin: const EdgeInsets.symmetric(vertical: 8),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: isDark ? Colors.white24 : Colors.black12,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              // Quality
+              ListTile(
+                leading: const Icon(Icons.tune_rounded),
+                title: const Text('Quality', style: TextStyle(fontWeight: FontWeight.w600)),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      _selectedQuality,
+                      style: TextStyle(color: isDark ? Colors.white70 : Colors.black54, fontSize: 13),
+                    ),
+                    const SizedBox(width: 4),
+                    const Icon(Icons.chevron_right_rounded, size: 20),
+                  ],
+                ),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _showQualitySelector(context);
+                },
+              ),
+              // Playback Speed
+              ListTile(
+                leading: const Icon(Icons.speed_rounded),
+                title: const Text('Playback speed', style: TextStyle(fontWeight: FontWeight.w600)),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      _playbackSpeed == 1.0 ? 'Normal' : '${_playbackSpeed}x',
+                      style: TextStyle(color: isDark ? Colors.white70 : Colors.black54, fontSize: 13),
+                    ),
+                    const SizedBox(width: 4),
+                    const Icon(Icons.chevron_right_rounded, size: 20),
+                  ],
+                ),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _showSpeedSelector(context);
+                },
+              ),
+              // Captions
+              ListTile(
+                leading: const Icon(Icons.closed_caption_outlined),
+                title: const Text('Captions', style: TextStyle(fontWeight: FontWeight.w600)),
+                trailing: Text(
+                  _isCaptionsEnabled ? 'English (auto)' : 'Off',
+                  style: TextStyle(color: isDark ? Colors.white70 : Colors.black54, fontSize: 13),
+                ),
+                onTap: () {
+                  setState(() => _isCaptionsEnabled = !_isCaptionsEnabled);
+                  Navigator.pop(ctx);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(_isCaptionsEnabled ? 'Subtitles turned on' : 'Subtitles turned off'),
+                      duration: const Duration(seconds: 1),
+                    ),
+                  );
+                },
+              ),
+              // Loop video
+              ListTile(
+                leading: const Icon(Icons.repeat_rounded),
+                title: const Text('Loop video', style: TextStyle(fontWeight: FontWeight.w600)),
+                trailing: Text(
+                  _isLooping ? 'On' : 'Off',
+                  style: TextStyle(color: isDark ? Colors.white70 : Colors.black54, fontSize: 13),
+                ),
+                onTap: () {
+                  setState(() => _isLooping = !_isLooping);
+                  Navigator.pop(ctx);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(_isLooping ? 'Loop video is on' : 'Loop video is off'),
+                      duration: const Duration(seconds: 1),
+                    ),
+                  );
+                },
+              ),
+              // Sleep timer
+              ListTile(
+                leading: const Icon(Icons.bedtime_outlined),
+                title: const Text('Sleep timer', style: TextStyle(fontWeight: FontWeight.w600)),
+                trailing: Text(
+                  'Off',
+                  style: TextStyle(color: isDark ? Colors.white70 : Colors.black54, fontSize: 13),
+                ),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _showSleepTimerDialog(context);
+                },
+              ),
+              // Stats for Nerds
+              ListTile(
+                leading: const Icon(Icons.bar_chart_rounded),
+                title: const Text('Stats for nerds', style: TextStyle(fontWeight: FontWeight.w600)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _showStatsForNerds(context);
+                },
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showQualitySelector(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final qualities = [
+      'Auto (1080p)',
+      '1080p60 HD',
+      '1080p HD',
+      '720p',
+      '480p',
+      '360p',
+      '240p',
+    ];
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: isDark ? const Color(0xFF212121) : Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Padding(
+                padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
+                child: Text('Quality for current video', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              ),
+              ...qualities.map((q) {
+                final isSelected = _selectedQuality == q;
+                return ListTile(
+                  title: Text(q, style: TextStyle(fontWeight: isSelected ? FontWeight.bold : FontWeight.normal)),
+                  trailing: isSelected ? const Icon(Icons.check_rounded, color: AppColors.primary) : null,
+                  onTap: () {
+                    setState(() => _selectedQuality = q);
+                    Navigator.pop(ctx);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Quality set to $q'),
+                        duration: const Duration(seconds: 1),
+                      ),
+                    );
+                  },
+                );
+              }),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showSpeedSelector(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final speeds = [0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0];
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: isDark ? const Color(0xFF212121) : Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Padding(
+                padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
+                child: Text('Playback speed', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              ),
+              ...speeds.map((s) {
+                final isSelected = _playbackSpeed == s;
+                final label = s == 1.0 ? 'Normal' : '${s}x';
+                return ListTile(
+                  title: Text(label, style: TextStyle(fontWeight: isSelected ? FontWeight.bold : FontWeight.normal)),
+                  trailing: isSelected ? const Icon(Icons.check_rounded, color: AppColors.primary) : null,
+                  onTap: () {
+                    setState(() => _playbackSpeed = s);
+                    _controller.setPlaybackRate(s);
+                    Navigator.pop(ctx);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Playback speed: $label'),
+                        duration: const Duration(seconds: 1),
+                      ),
+                    );
+                  },
+                );
+              }),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showSleepTimerDialog(BuildContext context) {
+    final timers = ['Off', '10 minutes', '15 minutes', '30 minutes', '45 minutes', '60 minutes', 'End of video'];
+    showDialog(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: const Text('Sleep timer'),
+        children: timers.map((t) {
+          return SimpleDialogOption(
+            onPressed: () {
+              Navigator.pop(ctx);
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Sleep timer: $t')),
+              );
+            },
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Text(t, style: const TextStyle(fontSize: 15)),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  void _showStatsForNerds(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+        title: const Row(
+          children: [
+            Icon(Icons.terminal_rounded, size: 20, color: AppColors.primary),
+            SizedBox(width: 8),
+            Text('Stats for Nerds', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildStatRow('Video ID / CPN', widget.video.id),
+              _buildStatRow('Viewport / Frames', '1080x608*2.63 / 0 dropped of 1420'),
+              _buildStatRow('Current / Optimal Res', '1920x1080@60 / 1920x1080@60'),
+              _buildStatRow('Codecs', 'avc1.64002a (399) / mp4a.40.2 (140)'),
+              _buildStatRow('Color', 'bt709 / bt709'),
+              _buildStatRow('Volume / Normalized', '100% / 100% (-1.2dB)'),
+              _buildStatRow('Connection Speed', '58420 Kbps'),
+              _buildStatRow('Buffer Health', '34.82 s'),
+              _buildStatRow('Network Activity', '0 KB'),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Close')),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey, fontWeight: FontWeight.bold)),
+          Text(value, style: const TextStyle(fontSize: 12, fontFamily: 'monospace')),
+        ],
+      ),
+    );
+  }
+
+  void _showShareModal(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final videoUrl = 'https://youtu.be/${widget.video.id}';
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: isDark ? const Color(0xFF212121) : Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Row(
+                    children: [
+                      const Text('Share', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                      const Spacer(),
+                      IconButton(
+                        icon: const Icon(Icons.close_rounded),
+                        onPressed: () => Navigator.pop(ctx),
+                      ),
+                    ],
+                  ),
+                ),
+                SizedBox(
+                  height: 90,
+                  child: ListView(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    children: [
+                      _buildShareAppIcon(
+                        icon: Icons.link_rounded,
+                        label: 'Copy link',
+                        bgColor: isDark ? const Color(0xFF383838) : const Color(0xFFE5E5E5),
+                        onTap: () {
+                          Clipboard.setData(ClipboardData(text: videoUrl));
+                          Navigator.pop(ctx);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Link copied to clipboard')),
+                          );
+                        },
+                      ),
+                      _buildShareAppIcon(
+                        icon: Icons.chat_bubble_rounded,
+                        label: 'WhatsApp',
+                        bgColor: const Color(0xFF25D366),
+                        iconColor: Colors.white,
+                        onTap: () {
+                          Clipboard.setData(ClipboardData(text: videoUrl));
+                          Navigator.pop(ctx);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Link copied for WhatsApp')),
+                          );
+                        },
+                      ),
+                      _buildShareAppIcon(
+                        icon: Icons.send_rounded,
+                        label: 'Telegram',
+                        bgColor: const Color(0xFF229ED9),
+                        iconColor: Colors.white,
+                        onTap: () {
+                          Clipboard.setData(ClipboardData(text: videoUrl));
+                          Navigator.pop(ctx);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Link copied for Telegram')),
+                          );
+                        },
+                      ),
+                      _buildShareAppIcon(
+                        icon: Icons.tag_rounded,
+                        label: 'X (Twitter)',
+                        bgColor: Colors.black,
+                        iconColor: Colors.white,
+                        onTap: () {
+                          Clipboard.setData(ClipboardData(text: videoUrl));
+                          Navigator.pop(ctx);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Link copied for X')),
+                          );
+                        },
+                      ),
+                      _buildShareAppIcon(
+                        icon: Icons.email_rounded,
+                        label: 'Gmail',
+                        bgColor: const Color(0xFFEA4335),
+                        iconColor: Colors.white,
+                        onTap: () {
+                          Clipboard.setData(ClipboardData(text: videoUrl));
+                          Navigator.pop(ctx);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Link copied for Email')),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF2F2F2F) : const Color(0xFFF2F2F2),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            videoUrl,
+                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: () {
+                            Clipboard.setData(ClipboardData(text: videoUrl));
+                            Navigator.pop(ctx);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Link copied to clipboard')),
+                            );
+                          },
+                          child: const Text('Copy'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildShareAppIcon({
+    required IconData icon,
+    required String label,
+    required Color bgColor,
+    Color iconColor = Colors.white,
+    required VoidCallback onTap,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircleAvatar(
+              radius: 24,
+              backgroundColor: bgColor,
+              child: Icon(icon, color: iconColor, size: 24),
+            ),
+            const SizedBox(height: 6),
+            Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showSavePlaylistModal(BuildContext context, LibraryProvider library) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: isDark ? const Color(0xFF212121) : Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setSheetState) {
+            final isInWatchLater = library.watchLater.any((v) => v.id == widget.video.id);
+
+            return SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      child: Row(
+                        children: [
+                          const Text(
+                            'Save video to...',
+                            style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+                          ),
+                          const Spacer(),
+                          TextButton.icon(
+                            icon: const Icon(Icons.add, size: 18),
+                            label: const Text('New playlist'),
+                            onPressed: () {
+                              Navigator.pop(ctx);
+                              _showCreatePlaylistDialog(context, library);
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Divider(height: 1),
+                    CheckboxListTile(
+                      value: isInWatchLater,
+                      title: const Text('Watch Later', style: TextStyle(fontWeight: FontWeight.w600)),
+                      secondary: const Icon(Icons.watch_later_outlined),
+                      activeColor: AppColors.primary,
+                      onChanged: (val) async {
+                        if (val == true) {
+                          await library.addToWatchLater(widget.video);
+                        } else {
+                          await library.removeFromWatchLater(widget.video.id);
+                        }
+                        setSheetState(() {});
+                      },
+                    ),
+                    ...library.playlists.map((playlist) {
+                      final hasVideo = playlist.videoCount > 0;
+                      return CheckboxListTile(
+                        value: hasVideo,
+                        title: Text(playlist.title, style: const TextStyle(fontWeight: FontWeight.w600)),
+                        secondary: const Icon(Icons.playlist_play_rounded),
+                        activeColor: AppColors.primary,
+                        onChanged: (val) async {
+                          if (val == true) {
+                            await library.addVideoToPlaylist(playlist.id, widget.video);
+                          } else {
+                            await library.removeVideoFromPlaylist(playlist.id, widget.video.id);
+                          }
+                          setSheetState(() {});
+                        },
+                      );
+                    }),
+                    const SizedBox(height: 12),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: SizedBox(
+                        width: double.infinity,
+                        child: FilledButton(
+                          style: FilledButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                          onPressed: () => Navigator.pop(ctx),
+                          child: const Text('Done'),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showCreatePlaylistDialog(BuildContext context, LibraryProvider library) {
+    final titleController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('New playlist'),
+        content: TextField(
+          controller: titleController,
+          autofocus: true,
+          decoration: const InputDecoration(
+            hintText: 'Enter title...',
+            border: UnderlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
+            onPressed: () async {
+              final title = titleController.text.trim();
+              if (title.isNotEmpty) {
+                final playlist = await library.createPlaylist(title);
+                await library.addVideoToPlaylist(playlist.id, widget.video);
+                if (ctx.mounted) Navigator.pop(ctx);
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Saved to $title')),
+                  );
+                }
+              }
+            },
+            child: const Text('Create'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showRemixSheet(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: isDark ? const Color(0xFF212121) : Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    const Text('Remix this video', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+                    const Spacer(),
+                    IconButton(icon: const Icon(Icons.close_rounded), onPressed: () => Navigator.pop(ctx)),
+                  ],
+                ),
+              ),
+              ListTile(
+                leading: const Icon(Icons.music_note_rounded),
+                title: const Text('Use this sound', style: TextStyle(fontWeight: FontWeight.w600)),
+                subtitle: const Text('Create a Short using this original audio'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Sound ready: "${widget.video.title}" loaded for Shorts Studio')),
+                  );
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.content_cut_rounded),
+                title: const Text('Cut this video', style: TextStyle(fontWeight: FontWeight.w600)),
+                subtitle: const Text('Trim a 1 to 5-second segment into a Short'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Video segment ready to trim into Shorts')),
+                  );
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.camera_alt_outlined),
+                title: const Text('Green Screen', style: TextStyle(fontWeight: FontWeight.w600)),
+                subtitle: const Text('Use this video as a background for your Short'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Green screen backdrop configured')),
+                  );
+                },
+              ),
+              const SizedBox(height: 12),
+            ],
+          ),
+        );
+      },
     );
   }
 }

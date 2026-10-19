@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../history/history_screen.dart';
 import '../playback/video_player_screen.dart';
 import '../playlists/watch_later_screen.dart';
@@ -9,6 +8,7 @@ import '../providers/library_provider.dart';
 import '../settings/settings_screen.dart';
 import '../theme/app_colors.dart';
 import '../widgets/account_sheet.dart';
+import '../widgets/google_sign_in_modal.dart';
 
 class LibraryScreen extends StatelessWidget {
   const LibraryScreen({super.key});
@@ -50,9 +50,16 @@ class LibraryScreen extends StatelessWidget {
           ),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        children: [
+      body: RefreshIndicator(
+        color: AppColors.primary,
+        onRefresh: () async {
+          await library.loadLibraryData();
+          await auth.refresh();
+        },
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          children: [
           // Profile Header Row (YouTube Modern "You" Tab)
           if (auth.isIncognito)
             Container(
@@ -145,12 +152,7 @@ class LibraryScreen extends StatelessWidget {
                               context,
                               icon: Icons.account_circle_outlined,
                               label: 'Google Account',
-                              onTap: () {
-                                launchUrl(
-                                  Uri.parse('https://myaccount.google.com/'),
-                                  mode: LaunchMode.externalApplication,
-                                );
-                              },
+                              onTap: () => AccountSheet.show(context),
                             ),
                             _buildProfilePill(
                               context,
@@ -208,9 +210,10 @@ class LibraryScreen extends StatelessWidget {
                     children: [
                       Expanded(
                         child: FilledButton.icon(
-                          onPressed: () => auth.signIn(),
+                          onPressed: () => GoogleSignInModal.show(context),
                           style: FilledButton.styleFrom(
-                            backgroundColor: AppColors.primary,
+                            backgroundColor: const Color(0xFF1A73E8),
+                            foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(vertical: 10),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                           ),
@@ -220,7 +223,7 @@ class LibraryScreen extends StatelessWidget {
                       ),
                       const SizedBox(width: 10),
                       OutlinedButton(
-                        onPressed: () => AccountSheet.showAddGmailDialog(context),
+                        onPressed: () => GoogleSignInModal.show(context),
                         style: OutlinedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -444,7 +447,8 @@ class LibraryScreen extends StatelessWidget {
           ),
         ],
       ),
-    );
+    ),
+  );
   }
 
   Widget _buildProfilePill(
