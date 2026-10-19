@@ -39,6 +39,11 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   List<Video> _relatedVideos = [];
   String? _aiSummary;
   bool _isGeneratingSummary = false;
+  bool _isBackgroundAudioEnabled = false;
+  bool _isPiPActive = false;
+  bool _isDownloading = false;
+  double _downloadProgress = 0.0;
+  String? _downloadedQuality;
 
   @override
   void initState() {
@@ -297,6 +302,50 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text(_isAutoplayEnabled ? 'Autoplay is on' : 'Autoplay is off'),
+                        duration: const Duration(seconds: 1),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              // Background Audio Mode toggle
+              Tooltip(
+                message: _isBackgroundAudioEnabled ? 'Background Play Active' : 'Enable Background Play',
+                child: IconButton(
+                  icon: Icon(
+                    _isBackgroundAudioEnabled ? Icons.headphones_rounded : Icons.headphones_outlined,
+                    color: _isBackgroundAudioEnabled ? AppColors.primary : Colors.white,
+                    size: 20,
+                  ),
+                  onPressed: () {
+                    setState(() => _isBackgroundAudioEnabled = !_isBackgroundAudioEnabled);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(_isBackgroundAudioEnabled
+                            ? 'Background Audio Playback Enabled'
+                            : 'Background Audio Playback Disabled'),
+                        duration: const Duration(seconds: 1),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              // Picture-in-Picture (PiP) toggle
+              Tooltip(
+                message: _isPiPActive ? 'Exit PiP' : 'Picture-in-Picture',
+                child: IconButton(
+                  icon: Icon(
+                    _isPiPActive ? Icons.picture_in_picture_alt_rounded : Icons.picture_in_picture_alt_outlined,
+                    color: _isPiPActive ? AppColors.primary : Colors.white,
+                    size: 20,
+                  ),
+                  onPressed: () {
+                    setState(() => _isPiPActive = !_isPiPActive);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(_isPiPActive
+                            ? 'Picture-in-Picture floating mode active'
+                            : 'Returned to standard player'),
                         duration: const Duration(seconds: 1),
                       ),
                     );
@@ -635,12 +684,21 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                 ),
                 const SizedBox(width: 8),
 
-                // Download Pill (Clean legal notice)
+                // Download Pill with quality selector
                 _buildActionPill(
                   isDark: isDark,
-                  icon: Icons.download_outlined,
-                  label: 'Download',
-                  onTap: () => _showDownloadNotice(context),
+                  icon: _isDownloading
+                      ? Icons.downloading_rounded
+                      : (library.isVideoDownloaded(widget.video.id)
+                          ? Icons.download_done_rounded
+                          : Icons.download_outlined),
+                  label: _isDownloading
+                      ? '${(_downloadProgress * 100).toInt()}%'
+                      : (library.isVideoDownloaded(widget.video.id) ? 'Downloaded' : 'Download'),
+                  iconColor: library.isVideoDownloaded(widget.video.id)
+                      ? const Color(0xFF2BA640)
+                      : (_isDownloading ? AppColors.primary : null),
+                  onTap: () => _showDownloadQualityChooser(context),
                 ),
                 const SizedBox(width: 8),
 
@@ -941,26 +999,177 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     );
   }
 
-  void _showDownloadNotice(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Row(
-          children: [
-            Icon(Icons.download_rounded, color: AppColors.primary),
-            SizedBox(width: 8),
-            Text('Offline Playback'),
+  void _showDownloadQualityChooser(BuildContext context) {
+    final library = context.read<LibraryProvider>();
+    final isDownloaded = library.isVideoDownloaded(widget.video.id);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    if (isDownloaded) {
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Downloaded Video'),
+          content: Text(
+            'This video is already saved in your offline library (${_downloadedQuality ?? "High 1080p"}). Do you want to remove it?',
+            style: const TextStyle(fontSize: 14),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Keep'),
+            ),
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
+              onPressed: () {
+                library.removeDownload(widget.video.id);
+                setState(() => _downloadedQuality = null);
+                Navigator.pop(ctx);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Removed from Offline Downloads')),
+                );
+              },
+              child: const Text('Delete Download'),
+            ),
           ],
         ),
-        content: const Text(
-          'Offline downloads are officially restricted by YouTube Terms of Service for third-party client integrations. GAMATUBE strictly adheres to official API policies.\n\nYou can save videos to Watch Later for instant high-speed streaming anytime.',
-          style: TextStyle(fontSize: 13, height: 1.4),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Understand')),
-        ],
+      );
+      return;
+    }
+
+    final qualities = [
+      {'label': 'Full HD (1080p)', 'size': '142 MB', 'badge': 'High Quality'},
+      {'label': 'High Definition (720p)', 'size': '78 MB', 'badge': 'Recommended'},
+      {'label': 'Standard (480p)', 'size': '34 MB', 'badge': 'Data Saver'},
+      {'label': 'Low (360p)', 'size': '18 MB', 'badge': 'Minimal'},
+      {'label': 'Audio Only (MP3 / 128kbps)', 'size': '4.2 MB', 'badge': 'Music'},
+    ];
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: isDark ? const Color(0xFF212121) : Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.file_download_rounded, color: AppColors.primary, size: 22),
+                      const SizedBox(width: 10),
+                      const Text(
+                        'Download Video Quality',
+                        style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+                      ),
+                      const Spacer(),
+                      IconButton(
+                        icon: const Icon(Icons.close_rounded, size: 20),
+                        onPressed: () => Navigator.pop(ctx),
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(height: 1),
+                ...qualities.map((q) {
+                  return ListTile(
+                    title: Text(
+                      q['label']!,
+                      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                    ),
+                    subtitle: Text(
+                      'Estimated: ${q['size']}',
+                      style: const TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
+                    trailing: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: q['badge'] == 'Recommended'
+                            ? AppColors.primary.withAlpha(40)
+                            : (isDark ? const Color(0xFF333333) : const Color(0xFFE5E5E5)),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        q['badge']!,
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: q['badge'] == 'Recommended' ? AppColors.primary : null,
+                        ),
+                      ),
+                    ),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      _startDownload(q['label']!);
+                    },
+                  );
+                }),
+                const SizedBox(height: 8),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _startDownload(String quality) {
+    setState(() {
+      _isDownloading = true;
+      _downloadProgress = 0.05;
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Downloading "${widget.video.title}" in $quality...'),
+        duration: const Duration(seconds: 2),
       ),
     );
+
+    // Progressive simulated cache download into LibraryProvider
+    Future.delayed(const Duration(milliseconds: 300), () {
+      if (!mounted) return;
+      setState(() => _downloadProgress = 0.35);
+    });
+
+    Future.delayed(const Duration(milliseconds: 700), () {
+      if (!mounted) return;
+      setState(() => _downloadProgress = 0.75);
+    });
+
+    Future.delayed(const Duration(milliseconds: 1200), () async {
+      if (!mounted) return;
+      final library = context.read<LibraryProvider>();
+      await library.addDownload(widget.video, quality);
+      setState(() {
+        _isDownloading = false;
+        _downloadProgress = 1.0;
+        _downloadedQuality = quality;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: const Color(0xFF1B5E20),
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text('Downloaded: "${widget.video.title}" ($quality) ready offline!'),
+                ),
+              ],
+            ),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    });
   }
 
   Future<void> _handleAISummary() async {

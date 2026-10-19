@@ -211,7 +211,22 @@ class SettingsScreen extends StatelessWidget {
           _buildSectionHeader(context, 'About GAMATUBE'),
           ListTile(
             title: const Text('Version'),
-            subtitle: const Text('${AppConstants.appVersion}+${AppConstants.buildNumber} • Multi-Platform'),
+            subtitle: const Text('${AppConstants.appVersion}+${AppConstants.buildNumber} • Multi-Platform Edition'),
+          ),
+          ListTile(
+            leading: const Icon(Icons.code_rounded, color: AppColors.primary),
+            title: const Text('Developer'),
+            subtitle: const Text(
+              'Vhuwon Mathers\nSystems & Infrastructure Engineer, Cybersecurity Specialist & Full-Stack Platform Architect.',
+              style: TextStyle(height: 1.4, fontSize: 13),
+            ),
+            isThreeLine: true,
+          ),
+          ListTile(
+            title: const Text('Developer Website'),
+            subtitle: const Text('https://gautambhuwan.com.np'),
+            trailing: const Icon(Icons.open_in_new_rounded, size: 18),
+            onTap: () => launchUrl(Uri.parse('https://gautambhuwan.com.np/developments.html')),
           ),
           ListTile(
             title: const Text('Privacy Policy'),

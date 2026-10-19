@@ -29,24 +29,66 @@ class _ShortsScreenState extends State<ShortsScreen> {
     _loadShorts();
   }
 
-  Future<void> _loadShorts() async {
+  bool _isLoadingMore = false;
+
+  Future<void> _loadShorts({bool refresh = false}) async {
     final service = context.read<VideoPlatformService>();
     try {
       final videos = await service.searchVideos('shorts trending');
+      final filtered = videos.where((v) {
+        final isShortDuration = v.duration != null && v.duration!.inSeconds <= 60;
+        final hasShortTag = v.description.toLowerCase().contains('#shorts') ||
+            v.title.toLowerCase().contains('#shorts');
+        return isShortDuration || hasShortTag;
+      }).toList();
+
       if (mounted) {
         setState(() {
-          _shorts = videos;
+          _shorts = filtered.isNotEmpty ? filtered : videos.take(10).toList();
           _isLoading = false;
         });
       }
     } catch (_) {
       if (mounted) {
         final fallback = await service.getHomeFeed();
+        final filtered = fallback.where((v) {
+          final isShortDuration = v.duration != null && v.duration!.inSeconds <= 60;
+          final hasShortTag = v.description.toLowerCase().contains('#shorts') ||
+              v.title.toLowerCase().contains('#shorts');
+          return isShortDuration || hasShortTag;
+        }).toList();
+
         setState(() {
-          _shorts = fallback;
+          _shorts = filtered.isNotEmpty ? filtered : fallback.take(5).toList();
           _isLoading = false;
         });
       }
+    }
+  }
+
+  Future<void> _loadMoreShorts() async {
+    if (_isLoadingMore) return;
+    _isLoadingMore = true;
+    final service = context.read<VideoPlatformService>();
+    try {
+      final more = await service.searchVideos('viral shorts funny tech');
+      final filtered = more.where((v) {
+        final isShortDuration = v.duration != null && v.duration!.inSeconds <= 60;
+        final hasShortTag = v.description.toLowerCase().contains('#shorts') ||
+            v.title.toLowerCase().contains('#shorts');
+        return isShortDuration || hasShortTag;
+      }).where((v) => !_shorts.any((existing) => existing.id == v.id)).toList();
+
+      if (mounted && filtered.isNotEmpty) {
+        setState(() {
+          _shorts.addAll(filtered);
+          _isLoadingMore = false;
+        });
+      } else {
+        _isLoadingMore = false;
+      }
+    } catch (_) {
+      _isLoadingMore = false;
     }
   }
 
@@ -106,6 +148,9 @@ class _ShortsScreenState extends State<ShortsScreen> {
           itemCount: _shorts.length,
           onPageChanged: (index) {
             setState(() => _currentPage = index);
+            if (index >= _shorts.length - 2) {
+              _loadMoreShorts();
+            }
           },
           itemBuilder: (context, index) {
             final video = _shorts[index];

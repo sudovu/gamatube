@@ -43,15 +43,24 @@ class _SearchScreenState extends State<SearchScreen> {
                 color: theme.colorScheme.onSurface.withAlpha(120),
               ),
               prefixIcon: const Icon(Icons.search_rounded, size: 20),
-              suffixIcon: _controller.text.isNotEmpty
-                  ? IconButton(
+              suffixIcon: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (_controller.text.isNotEmpty)
+                    IconButton(
                       icon: const Icon(Icons.close_rounded, size: 18),
                       onPressed: () {
                         _controller.clear();
                         search.onQueryChanged('');
                       },
-                    )
-                  : null,
+                    ),
+                  IconButton(
+                    icon: const Icon(Icons.mic_rounded, color: AppColors.primary, size: 20),
+                    tooltip: 'Search with your voice',
+                    onPressed: () => _showVoiceSearchDialog(context, search),
+                  ),
+                ],
+              ),
               contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               filled: true,
               fillColor: theme.colorScheme.surfaceContainerHighest.withAlpha(100),
@@ -192,6 +201,106 @@ class _SearchScreenState extends State<SearchScreen> {
               },
             )),
       ],
+    );
+  }
+
+  void _showVoiceSearchDialog(BuildContext context, SearchProvider search) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final popularVoiceQueries = [
+      'Trending Music 2026',
+      'Artificial Intelligence documentaries',
+      'Flutter multi-platform tutorial',
+      'Lofi hip hop beats to relax',
+      'Quantum computing explained',
+    ];
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: isDark ? const Color(0xFF1F1F1F) : Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Voice Search',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded),
+                      onPressed: () => Navigator.pop(ctx),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                // Animated Pulsing Microphone Icon
+                Container(
+                  width: 76,
+                  height: 76,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: AppColors.primary.withAlpha(30),
+                  ),
+                  child: Center(
+                    child: Container(
+                      width: 58,
+                      height: 58,
+                      decoration: const BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: AppColors.primary,
+                      ),
+                      child: const Icon(Icons.mic_rounded, color: Colors.white, size: 30),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Listening...',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  'Say a video title, topic, or creator name',
+                  style: TextStyle(fontSize: 13, color: Colors.grey),
+                ),
+                const SizedBox(height: 20),
+                const Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Or try saying:',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: popularVoiceQueries.map((query) {
+                    return ActionChip(
+                      avatar: const Icon(Icons.mic_none_rounded, size: 16),
+                      label: Text(query, style: const TextStyle(fontSize: 12)),
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        _controller.text = query;
+                        search.executeSearch(query);
+                      },
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 12),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }

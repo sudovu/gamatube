@@ -36,11 +36,14 @@ class LibraryProvider extends ChangeNotifier {
     loadLibraryData();
   }
 
+  List<Video> _downloads = [];
+
   List<WatchHistoryItem> get history => _history;
   List<Video> get watchLater => _watchLater;
   List<Playlist> get playlists => _playlists;
   List<Video> get likedVideos => _likedVideos;
   List<Channel> get subscribedChannels => _subscribedChannels;
+  List<Video> get downloads => _downloads;
   bool get isLoading => _isLoading;
 
   Future<void> loadLibraryData() async {
@@ -56,6 +59,12 @@ class LibraryProvider extends ChangeNotifier {
       final likedRaw = await _localStore.getJsonList('gamatube_liked_videos_v1');
       if (likedRaw != null) {
         _likedVideos = likedRaw.map((j) => Video.fromJson(j)).toList();
+      }
+
+      // Load Offline Downloads
+      final dlRaw = await _localStore.getJsonList('gamatube_offline_downloads_v1');
+      if (dlRaw != null) {
+        _downloads = dlRaw.map((j) => Video.fromJson(j)).toList();
       }
 
       // Load Subscribed Channels
@@ -241,5 +250,35 @@ class LibraryProvider extends ChangeNotifier {
   Future<void> removeVideoFromPlaylist(String playlistId, String videoId) async {
     await _playlistRepository.removeVideoFromPlaylist(playlistId, videoId);
     await loadLibraryData();
+  }
+
+  // Offline Download actions
+  bool isVideoDownloaded(String videoId) {
+    return _downloads.any((v) => v.id == videoId);
+  }
+
+  Future<void> addDownload(Video video, String quality) async {
+    _downloads.removeWhere((v) => v.id == video.id);
+    _downloads.insert(0, video);
+    notifyListeners();
+
+    if (_localStore != null) {
+      await _localStore.setJsonList(
+        'gamatube_offline_downloads_v1',
+        _downloads.map((v) => v.toJson()).toList(),
+      );
+    }
+  }
+
+  Future<void> removeDownload(String videoId) async {
+    _downloads.removeWhere((v) => v.id == videoId);
+    notifyListeners();
+
+    if (_localStore != null) {
+      await _localStore.setJsonList(
+        'gamatube_offline_downloads_v1',
+        _downloads.map((v) => v.toJson()).toList(),
+      );
+    }
   }
 }

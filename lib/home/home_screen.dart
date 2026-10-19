@@ -12,7 +12,7 @@ import '../widgets/error_state_view.dart';
 import '../widgets/gamatube_logo.dart';
 import '../widgets/video_card.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   final VoidCallback? onSearchTap;
   final VoidCallback? onProfileTap;
 
@@ -21,6 +21,32 @@ class HomeScreen extends StatelessWidget {
     this.onSearchTap,
     this.onProfileTap,
   });
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onScroll);
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 400) {
+      context.read<HomeProvider>().loadMore();
+    }
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -70,14 +96,13 @@ class HomeScreen extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.search_rounded),
             tooltip: 'Search',
-            onPressed: onSearchTap,
+            onPressed: widget.onSearchTap,
           ),
-          // User Avatar
           // User Avatar
           Padding(
             padding: const EdgeInsets.only(right: 14, left: 4),
             child: GestureDetector(
-              onTap: onProfileTap ?? () => AccountSheet.show(context),
+              onTap: widget.onProfileTap ?? () => AccountSheet.show(context),
               child: auth.isIncognito
                   ? Container(
                       width: 28,
@@ -120,6 +145,7 @@ class HomeScreen extends StatelessWidget {
           ]);
         },
         child: CustomScrollView(
+          controller: _scrollController,
           physics: const AlwaysScrollableScrollPhysics(
             parent: BouncingScrollPhysics(),
           ),
@@ -278,9 +304,22 @@ class HomeScreen extends StatelessWidget {
             else ...[
               // Feed with YouTube-style Shorts Shelf inserted
               SliverPadding(
-                padding: const EdgeInsets.only(top: 4, bottom: 24),
+                padding: const EdgeInsets.only(top: 4, bottom: 16),
                 sliver: _buildResponsiveVideoFeed(context, home.feedVideos),
               ),
+              if (home.isLoadingMore)
+                const SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(vertical: 20),
+                    child: Center(
+                      child: SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+                      ),
+                    ),
+                  ),
+                ),
             ],
           ],
         ),
