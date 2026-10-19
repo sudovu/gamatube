@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../playback/video_player_screen.dart';
 import '../providers/auth_provider.dart';
+import '../providers/playback_provider.dart';
 import '../theme/app_colors.dart';
 import 'gamatube_logo.dart';
 import 'network_status_banner.dart';
@@ -39,6 +41,7 @@ class ResponsiveScaffold extends StatelessWidget {
                   ],
                 ),
               ),
+              _buildMiniPlayer(context),
             ],
           ),
           bottomNavigationBar: (isDesktop || isTablet)
@@ -265,6 +268,107 @@ class ResponsiveScaffold extends StatelessWidget {
           label: 'You',
         ),
       ],
+    );
+  }
+
+  Widget _buildMiniPlayer(BuildContext context) {
+    final playback = context.watch<PlaybackProvider>();
+    final video = playback.currentVideo;
+    if (video == null) return const SizedBox.shrink();
+
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final progress = playback.totalDuration.inMilliseconds > 0
+        ? (playback.currentPosition.inMilliseconds / playback.totalDuration.inMilliseconds).clamp(0.0, 1.0)
+        : 0.0;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF212121) : const Color(0xFFF1F1F1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withAlpha(40),
+            blurRadius: 8,
+            offset: const Offset(0, -2),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          LinearProgressIndicator(
+            value: progress,
+            minHeight: 2.5,
+            backgroundColor: Colors.transparent,
+            valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
+          ),
+          InkWell(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => VideoPlayerScreen(video: video),
+                ),
+              );
+            },
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              child: Row(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(6),
+                    child: SizedBox(
+                      width: 64,
+                      height: 36,
+                      child: Image.network(
+                        video.thumbnailUrl,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, _, _) => Container(
+                          color: Colors.black,
+                          child: const Icon(Icons.play_arrow_rounded, color: Colors.white),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          video.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          video.channelTitle,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontSize: 11, color: isDark ? Colors.white60 : Colors.black54),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: Icon(
+                      playback.isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                      size: 24,
+                    ),
+                    onPressed: () => playback.togglePlayPause(),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded, size: 20),
+                    onPressed: () => playback.closeVideo(),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -117,6 +117,13 @@ class PlaybackProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  void closeVideo() {
+    _positionSaveTimer?.cancel();
+    _currentVideo = null;
+    _isPlaying = false;
+    notifyListeners();
+  }
+
   Future<void> _saveCurrentPosition() async {
     if (_currentVideo == null) return;
     final settings = await _settingsRepository.getSettings();

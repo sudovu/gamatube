@@ -503,13 +503,31 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> with WidgetsBindi
             ],
           ),
         ),
-        // Active YouTube Player View (Unobstructed for full native touch & gestures)
-        AspectRatio(
-          aspectRatio: 16 / 9,
-          child: YoutubePlayer(
-            controller: _controller,
-            aspectRatio: 16 / 9,
-          ),
+        // Active YouTube Player View with Ambient Mode Glow Effect
+        Stack(
+          children: [
+            Positioned.fill(
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: RadialGradient(
+                    center: Alignment.bottomCenter,
+                    radius: 1.3,
+                    colors: [
+                      AppColors.primary.withAlpha(45),
+                      Colors.transparent,
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            AspectRatio(
+              aspectRatio: 16 / 9,
+              child: YoutubePlayer(
+                controller: _controller,
+                aspectRatio: 16 / 9,
+              ),
+            ),
+          ],
         ),
       ],
     );

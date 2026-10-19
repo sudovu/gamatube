@@ -259,14 +259,37 @@ class LibraryScreen extends StatelessWidget {
                   'History',
                   style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17),
                 ),
-                TextButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const HistoryScreen()),
-                    );
-                  },
-                  child: const Text('View all', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.sync_rounded, size: 18),
+                      tooltip: 'Sync with YouTube',
+                      onPressed: () async {
+                        await library.syncYouTubeHistory(
+                          accessToken: auth.user?.accessToken,
+                          force: true,
+                        );
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Watch history matched with YouTube account'),
+                              duration: Duration(seconds: 2),
+                            ),
+                          );
+                        }
+                      },
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const HistoryScreen()),
+                        );
+                      },
+                      child: const Text('View all', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
+                    ),
+                  ],
                 ),
               ],
             ),

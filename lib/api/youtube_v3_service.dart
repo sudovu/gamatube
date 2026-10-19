@@ -862,6 +862,79 @@ class YouTubeV3Service implements VideoPlatformService {
         viewCount: 310000000,
         likeCount: 16000000,
       ),
+      // Additional Tech, Python, Web & Entertainment
+      Video(
+        id: '_uQrJ0TkZlc',
+        title: 'Python Tutorial for Beginners - Full Course in 6 Hours',
+        description: 'Python tutorial for beginners - Learn Python for data science, web development, and automation. #tech #code #python #programming',
+        thumbnailUrl: 'https://img.youtube.com/vi/_uQrJ0TkZlc/hqdefault.jpg',
+        channelId: 'UCWv7vMbMWH4-V0ZXdmDpPBA',
+        channelTitle: 'Programming with Mosh',
+        publishedAt: DateTime(2019, 2, 18),
+        duration: const Duration(hours: 6, minutes: 14),
+        viewCount: 42000000,
+        likeCount: 1200000,
+      ),
+      Video(
+        id: 'bMknfKXIFA8',
+        title: 'React Course - Beginner\'s Tutorial for React JavaScript',
+        description: 'Learn modern React JS step-by-step with projects. Components, state, hooks, and routing. #tech #code #react #javascript',
+        thumbnailUrl: 'https://img.youtube.com/vi/bMknfKXIFA8/hqdefault.jpg',
+        channelId: 'UC8butISFwT-Wl7EV0hUK0BQ',
+        channelTitle: 'freeCodeCamp.org',
+        publishedAt: DateTime(2022, 1, 10),
+        duration: const Duration(hours: 11, minutes: 55),
+        viewCount: 5200000,
+        likeCount: 180000,
+      ),
+      Video(
+        id: '4Tnk4e861d8',
+        title: 'Building a PC... using only AliExpress!',
+        description: 'Linus Tech Tips attempts to assemble a gaming battlestation sourcing everything from discount online storefronts. #tech #pc #linus',
+        thumbnailUrl: 'https://img.youtube.com/vi/4Tnk4e861d8/hqdefault.jpg',
+        channelId: 'UCXuqSBlHAE6Xw-yeJA0Tunw',
+        channelTitle: 'Linus Tech Tips',
+        publishedAt: DateTime(2023, 6, 12),
+        duration: const Duration(minutes: 18, seconds: 40),
+        viewCount: 4800000,
+        likeCount: 220000,
+      ),
+      Video(
+        id: '4NRXx6U8ABQ',
+        title: 'The Weeknd - Blinding Lights (Official Video)',
+        description: 'Official music video for The Weeknd - Blinding Lights. Record-breaking billboard hit. #music #rnb #pop',
+        thumbnailUrl: 'https://img.youtube.com/vi/4NRXx6U8ABQ/hqdefault.jpg',
+        channelId: 'UC0WP5P-ufpRfjbNrmOWwLBQ',
+        channelTitle: 'The Weeknd',
+        publishedAt: DateTime(2020, 1, 21),
+        duration: const Duration(minutes: 4, seconds: 20),
+        viewCount: 820000000,
+        likeCount: 9800000,
+      ),
+      Video(
+        id: 'rYEDA3JcQqw',
+        title: 'Adele - Rolling in the Deep (Official Music Video)',
+        description: 'The official music video for Adele - Rolling in the Deep from the album 21. #music #soul #adele',
+        thumbnailUrl: 'https://img.youtube.com/vi/rYEDA3JcQqw/hqdefault.jpg',
+        channelId: 'UComP_epzeKzvBX156r6pm1Q',
+        channelTitle: 'Adele',
+        publishedAt: DateTime(2010, 11, 30),
+        duration: const Duration(minutes: 3, seconds: 53),
+        viewCount: 2300000000,
+        likeCount: 12500000,
+      ),
+      Video(
+        id: 'e-ORhEE9VVg',
+        title: 'Taylor Swift - Blank Space (Official Music Video)',
+        description: 'Music video by Taylor Swift performing Blank Space. #music #pop #taylorswift',
+        thumbnailUrl: 'https://img.youtube.com/vi/e-ORhEE9VVg/hqdefault.jpg',
+        channelId: 'UCqECaJ8Gagnn7YCbPEzWH6g',
+        channelTitle: 'Taylor Swift',
+        publishedAt: DateTime(2014, 11, 10),
+        duration: const Duration(minutes: 4, seconds: 32),
+        viewCount: 3400000000,
+        likeCount: 14000000,
+      ),
     ];
   }
 
@@ -911,14 +984,30 @@ class YouTubeV3Service implements VideoPlatformService {
       if (matches.isNotEmpty) return matches;
     }
 
-    // 2. Tokenized search across title, description, and channelTitle
+    // 2. Scored relevance search across title, channelTitle, and description
     final tokens = lower.split(RegExp(r'\s+')).where((t) => t.isNotEmpty).toList();
-    final results = all.where((v) {
-      final hay = '${v.title} ${v.channelTitle} ${v.description}'.toLowerCase();
-      return tokens.any((tok) => hay.contains(tok));
-    }).toList();
+    final scored = <Video, int>{};
+    for (final v in all) {
+      final titleLower = v.title.toLowerCase();
+      final channelLower = v.channelTitle.toLowerCase();
+      final descLower = v.description.toLowerCase();
+      int score = 0;
+      if (titleLower.contains(lower)) score += 10;
+      if (channelLower.contains(lower)) score += 8;
+      for (final tok in tokens) {
+        if (titleLower.contains(tok)) score += 5;
+        if (channelLower.contains(tok)) score += 3;
+        if (descLower.contains(tok)) score += 1;
+      }
+      if (score > 0) scored[v] = score;
+    }
 
-    return results.isNotEmpty ? results : all.take(10).toList();
+    if (scored.isNotEmpty) {
+      final sorted = scored.keys.toList()..sort((a, b) => scored[b]!.compareTo(scored[a]!));
+      return sorted;
+    }
+
+    return all.take(15).toList();
   }
 }
 

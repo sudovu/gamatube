@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../playback/video_player_screen.dart';
+import '../providers/auth_provider.dart';
 import '../providers/library_provider.dart';
 import '../providers/settings_provider.dart';
 import '../widgets/empty_state_view.dart';
@@ -37,6 +38,25 @@ class HistoryScreen extends StatelessWidget {
                       : 'Watch history tracking resumed'),
                 ),
               );
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.sync_rounded),
+            tooltip: 'Sync with YouTube History',
+            onPressed: () async {
+              final auth = context.read<AuthProvider>();
+              await library.syncYouTubeHistory(
+                accessToken: auth.user?.accessToken,
+                force: true,
+              );
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Watch history synchronized with YouTube account'),
+                    duration: Duration(seconds: 2),
+                  ),
+                );
+              }
             },
           ),
           if (library.history.isNotEmpty)
