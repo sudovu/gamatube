@@ -22,7 +22,8 @@ class VideoPlayerScreen extends StatefulWidget {
   State<VideoPlayerScreen> createState() => _VideoPlayerScreenState();
 }
 
-class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
+class _VideoPlayerScreenState extends State<VideoPlayerScreen> with WidgetsBindingObserver {
+  static const MethodChannel _pipChannel = MethodChannel('com.sudovu.gamatube/pip');
   late YoutubePlayerController _controller;
   final TextEditingController _commentController = TextEditingController();
   bool _isDescriptionExpanded = false;
@@ -39,7 +40,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   List<Video> _relatedVideos = [];
   String? _aiSummary;
   bool _isGeneratingSummary = false;
-  bool _isBackgroundAudioEnabled = false;
+  bool _isBackgroundAudioEnabled = true; // Enabled by default for flawless YouTube-like background playback
   bool _isPiPActive = false;
   bool _isDownloading = false;
   double _downloadProgress = 0.0;
@@ -48,8 +49,40 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _initPlayer();
     _loadMetadata();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (_isBackgroundAudioEnabled) {
+      if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+        // Automatically enter native PiP if video is active when leaving app
+        if (_isPiPActive) {
+          _enterNativePiP();
+        }
+        // Force player to continue audio playback in background
+        _controller.playVideo();
+      } else if (state == AppLifecycleState.resumed) {
+        _controller.playVideo();
+      }
+    }
+  }
+
+  Future<void> _enterNativePiP() async {
+    try {
+      final bool? success = await _pipChannel.invokeMethod<bool>('enterPiP');
+      if (mounted) {
+        setState(() => _isPiPActive = success == true);
+        if (success == true) {
+          _controller.playVideo();
+        }
+      }
+    } catch (_) {
+      // Fallback
+    }
   }
 
   @override
@@ -125,6 +158,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _controller.close();
     _commentController.dispose();
     super.dispose();
@@ -339,16 +373,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                     color: _isPiPActive ? AppColors.primary : Colors.white,
                     size: 20,
                   ),
-                  onPressed: () {
-                    setState(() => _isPiPActive = !_isPiPActive);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(_isPiPActive
-                            ? 'Picture-in-Picture floating mode active'
-                            : 'Returned to standard player'),
-                        duration: const Duration(seconds: 1),
-                      ),
-                    );
+                  onPressed: () async {
+                    await _enterNativePiP();
                   },
                 ),
               ),
