@@ -218,7 +218,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> with WidgetsBindi
         showFullscreenButton: true,
         strictRelatedVideos: false,
         enableCaption: true,
-        origin: 'https://www.youtube.com',
         playsInline: true,
         privacyEnhancedMode: false,
       ),
@@ -233,6 +232,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> with WidgetsBindi
         });
       }
       final state = event.playerState;
+      if (state == PlayerState.cued) {
+        _controller.playVideo();
+      }
       if (state == PlayerState.playing) {
         if (_hasPlaybackError) {
           setState(() => _hasPlaybackError = false);
@@ -256,6 +258,18 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> with WidgetsBindi
             ),
           );
         }
+      }
+    });
+
+    // Proactive trigger to ensure playback starts smoothly on modern mobile WebViews
+    Future.delayed(const Duration(milliseconds: 600), () {
+      if (mounted && !_isPlaying && !_hasPlaybackError) {
+        _controller.playVideo();
+      }
+    });
+    Future.delayed(const Duration(milliseconds: 1400), () {
+      if (mounted && !_isPlaying && !_hasPlaybackError) {
+        _controller.playVideo();
       }
     });
 
