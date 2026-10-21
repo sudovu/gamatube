@@ -62,8 +62,9 @@ class _GoogleSignInModalState extends State<GoogleSignInModal> {
         if (success) {
           await library.loadLibraryData();
           if (mounted) {
+            final messenger = ScaffoldMessenger.of(context);
             Navigator.pop(context, true);
-            ScaffoldMessenger.of(context).showSnackBar(
+            messenger.showSnackBar(
               SnackBar(
                 content: Row(
                   children: [
@@ -103,8 +104,9 @@ class _GoogleSignInModalState extends State<GoogleSignInModal> {
       if (success) {
         await library.loadLibraryData();
         if (mounted) {
+          final messenger = ScaffoldMessenger.of(context);
           Navigator.pop(context, true);
-          ScaffoldMessenger.of(context).showSnackBar(
+          messenger.showSnackBar(
             SnackBar(
               content: Row(
                 children: [

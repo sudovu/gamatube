@@ -9,6 +9,7 @@ import '../search/search_screen.dart';
 import '../settings/settings_screen.dart';
 import '../theme/app_colors.dart';
 import '../widgets/account_sheet.dart';
+import '../widgets/gama_thumbnail.dart';
 import '../widgets/google_sign_in_modal.dart';
 
 class LibraryScreen extends StatelessWidget {
@@ -328,14 +329,14 @@ class LibraryScreen extends StatelessWidget {
                         children: [
                           Stack(
                             children: [
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(8),
-                                child: AspectRatio(
-                                  aspectRatio: 16 / 9,
-                                  child: Image.network(
-                                    item.video.thumbnailUrl,
-                                    fit: BoxFit.cover,
-                                  ),
+                              AspectRatio(
+                                aspectRatio: 16 / 9,
+                                child: GamaThumbnail(
+                                  videoId: item.video.id,
+                                  thumbnailUrl: item.video.thumbnailUrl,
+                                  highThumbnailUrl: item.video.highThumbnailUrl,
+                                  standardThumbnailUrl: item.video.standardThumbnailUrl,
+                                  borderRadius: BorderRadius.circular(8),
                                 ),
                               ),
                               Positioned(
@@ -648,14 +649,14 @@ class LibraryScreen extends StatelessWidget {
                             child: Row(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                ClipRRect(
+                                GamaThumbnail(
+                                  videoId: v.id,
+                                  thumbnailUrl: v.thumbnailUrl,
+                                  highThumbnailUrl: v.highThumbnailUrl,
+                                  standardThumbnailUrl: v.standardThumbnailUrl,
+                                  width: 110,
+                                  height: 62,
                                   borderRadius: BorderRadius.circular(8),
-                                  child: Image.network(
-                                    v.thumbnailUrl,
-                                    width: 110,
-                                    height: 62,
-                                    fit: BoxFit.cover,
-                                  ),
                                 ),
                                 const SizedBox(width: 12),
                                 Expanded(
@@ -774,14 +775,14 @@ class LibraryScreen extends StatelessWidget {
                             },
                             child: Row(
                               children: [
-                                ClipRRect(
+                                GamaThumbnail(
+                                  videoId: v.id,
+                                  thumbnailUrl: v.thumbnailUrl,
+                                  highThumbnailUrl: v.highThumbnailUrl,
+                                  standardThumbnailUrl: v.standardThumbnailUrl,
+                                  width: 110,
+                                  height: 62,
                                   borderRadius: BorderRadius.circular(8),
-                                  child: Image.network(
-                                    v.thumbnailUrl,
-                                    width: 110,
-                                    height: 62,
-                                    fit: BoxFit.cover,
-                                  ),
                                 ),
                                 const SizedBox(width: 12),
                                 Expanded(

@@ -31,7 +31,8 @@ void main() {
       ),
     );
 
-    expect(find.text('GamaTube'), findsOneWidget);
+    expect(find.text('GAMA'), findsOneWidget);
+    expect(find.text('TUBE'), findsOneWidget);
     expect(find.byType(GamatubeLogo), findsOneWidget);
   });
 

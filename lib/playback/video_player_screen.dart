@@ -76,11 +76,21 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> with WidgetsBindi
     super.didChangeAppLifecycleState(state);
     final settings = context.read<SettingsProvider>().settings;
     if (settings.backgroundAudioEnabled) {
-      if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+      if (state == AppLifecycleState.paused ||
+          state == AppLifecycleState.inactive ||
+          state == AppLifecycleState.hidden) {
         if (settings.pipEnabled && !_isPiPActive) {
           _enterNativePiP();
         }
         _controller.playVideo();
+        // Crucial: Android WebView can dispatch an internal pause event 200-500ms after app minimize
+        // Enforce play commands to ensure continuous background audio
+        Future.delayed(const Duration(milliseconds: 300), () {
+          if (mounted) _controller.playVideo();
+        });
+        Future.delayed(const Duration(milliseconds: 800), () {
+          if (mounted) _controller.playVideo();
+        });
       } else if (state == AppLifecycleState.resumed) {
         _controller.playVideo();
       }

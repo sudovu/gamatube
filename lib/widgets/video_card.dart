@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../models/video.dart';
 import '../providers/library_provider.dart';
 import '../theme/app_colors.dart';
+import 'gama_thumbnail.dart';
 
 class VideoCard extends StatelessWidget {
   final Video video;
@@ -46,18 +47,12 @@ class VideoCard extends StatelessWidget {
                       color: isDark ? const Color(0xFF1F1F1F) : const Color(0xFFE5E5E5),
                       width: double.infinity,
                       height: double.infinity,
-                      child: Image.network(
-                        video.thumbnailUrl,
-                        fit: BoxFit.cover,
+                      child: GamaThumbnail(
+                        videoId: video.id,
+                        thumbnailUrl: video.thumbnailUrl,
+                        highThumbnailUrl: video.highThumbnailUrl,
+                        standardThumbnailUrl: video.standardThumbnailUrl,
                         cacheWidth: 640,
-                        filterQuality: FilterQuality.low,
-                        errorBuilder: (_, _, _) => Center(
-                          child: Icon(
-                            Icons.play_circle_outline_rounded,
-                            size: 54,
-                            color: theme.colorScheme.onSurface.withAlpha(80),
-                          ),
-                        ),
                       ),
                     ),
                   ),
@@ -208,18 +203,13 @@ class VideoCard extends StatelessWidget {
                 aspectRatio: 16 / 9,
                 child: Stack(
                   children: [
-                    ClipRRect(
+                    GamaThumbnail(
+                      videoId: video.id,
+                      thumbnailUrl: video.thumbnailUrl,
+                      highThumbnailUrl: video.highThumbnailUrl,
+                      standardThumbnailUrl: video.standardThumbnailUrl,
                       borderRadius: BorderRadius.circular(8),
-                      child: Image.network(
-                        video.thumbnailUrl,
-                        fit: BoxFit.cover,
-                        cacheWidth: 320,
-                        filterQuality: FilterQuality.low,
-                        errorBuilder: (_, _, _) => Container(
-                          color: isDark ? const Color(0xFF272727) : const Color(0xFFEEEEEE),
-                          child: const Icon(Icons.play_arrow_rounded),
-                        ),
-                      ),
+                      cacheWidth: 320,
                     ),
                     if (video.formattedDuration.isNotEmpty)
                       Positioned(

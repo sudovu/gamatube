@@ -10,6 +10,7 @@ import '../widgets/account_sheet.dart';
 import '../widgets/empty_state_view.dart';
 import '../widgets/error_state_view.dart';
 import '../widgets/gamatube_logo.dart';
+import '../widgets/gama_thumbnail.dart';
 import '../widgets/video_card.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -351,20 +352,15 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             Stack(
               children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(10),
-                  child: AspectRatio(
-                    aspectRatio: 16 / 9,
-                    child: Image.network(
-                      video.thumbnailUrl,
-                      fit: BoxFit.cover,
-                      cacheWidth: 360,
-                      filterQuality: FilterQuality.low,
-                      errorBuilder: (_, _, _) => Container(
-                        color: theme.colorScheme.surfaceContainerHighest,
-                        child: const Icon(Icons.play_arrow_rounded),
-                      ),
-                    ),
+                AspectRatio(
+                  aspectRatio: 16 / 9,
+                  child: GamaThumbnail(
+                    videoId: video.id,
+                    thumbnailUrl: video.thumbnailUrl,
+                    highThumbnailUrl: video.highThumbnailUrl,
+                    standardThumbnailUrl: video.standardThumbnailUrl,
+                    borderRadius: BorderRadius.circular(10),
+                    cacheWidth: 360,
                   ),
                 ),
                 // Progress Bar at bottom of thumbnail
@@ -517,16 +513,15 @@ class _HomeScreenState extends State<HomeScreen> {
                     width: 140,
                     child: Stack(
                       children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(12),
-                          child: AspectRatio(
-                            aspectRatio: 9 / 16,
-                            child: Image.network(
-                              short.thumbnailUrl,
-                              fit: BoxFit.cover,
-                              cacheWidth: 280,
-                              filterQuality: FilterQuality.low,
-                            ),
+                        AspectRatio(
+                          aspectRatio: 9 / 16,
+                          child: GamaThumbnail(
+                            videoId: short.id,
+                            thumbnailUrl: short.thumbnailUrl,
+                            highThumbnailUrl: short.highThumbnailUrl,
+                            standardThumbnailUrl: short.standardThumbnailUrl,
+                            borderRadius: BorderRadius.circular(12),
+                            cacheWidth: 280,
                           ),
                         ),
                         Container(

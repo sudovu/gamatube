@@ -60,7 +60,11 @@ class GoogleOAuthAuthService implements AuthService {
     AppLogger.info('Initiating Google Sign-In');
 
     try {
-      // 1. Try official native Google Sign-In (displays native Google account chooser on mobile/web)
+      // Ensure Google Account Chooser is always displayed, allowing user to pick any account or add another
+      try {
+        await _googleSignIn.signOut();
+      } catch (_) {}
+
       final googleUser = await _googleSignIn.signIn();
       if (googleUser != null) {
         final auth = await googleUser.authentication;

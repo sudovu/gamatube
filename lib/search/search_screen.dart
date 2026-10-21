@@ -6,6 +6,7 @@ import '../providers/search_provider.dart';
 import '../theme/app_colors.dart';
 import '../widgets/empty_state_view.dart';
 import '../widgets/error_state_view.dart';
+import '../widgets/gama_thumbnail.dart';
 import '../widgets/video_card.dart';
 
 class SearchScreen extends StatefulWidget {
@@ -312,20 +313,15 @@ class _SearchScreenState extends State<SearchScreen> {
               width: 240,
               child: Stack(
                 children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(10),
-                    child: AspectRatio(
-                      aspectRatio: 16 / 9,
-                      child: Image.network(
-                        video.thumbnailUrl,
-                        fit: BoxFit.cover,
-                        cacheWidth: 480,
-                        filterQuality: FilterQuality.low,
-                        errorBuilder: (_, _, _) => Container(
-                          color: isDark ? Colors.grey[900] : Colors.grey[300],
-                          child: const Icon(Icons.play_circle_outline, size: 40),
-                        ),
-                      ),
+                  AspectRatio(
+                    aspectRatio: 16 / 9,
+                    child: GamaThumbnail(
+                      videoId: video.id,
+                      thumbnailUrl: video.thumbnailUrl,
+                      highThumbnailUrl: video.highThumbnailUrl,
+                      standardThumbnailUrl: video.standardThumbnailUrl,
+                      borderRadius: BorderRadius.circular(10),
+                      cacheWidth: 480,
                     ),
                   ),
                   if (video.duration != null)
