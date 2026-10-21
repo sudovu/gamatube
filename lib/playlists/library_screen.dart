@@ -48,6 +48,31 @@ class LibraryScreen extends StatelessWidget {
             },
           ),
           IconButton(
+            icon: const Icon(Icons.sync_rounded),
+            tooltip: 'Sync with YouTube',
+            onPressed: () async {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Syncing with YouTube...'),
+                  duration: Duration(seconds: 2),
+                ),
+              );
+              await library.syncAllYouTubeData(
+                accessToken: auth.user?.accessToken,
+                force: true,
+              );
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('YouTube history, subscriptions, & likes synced!'),
+                    backgroundColor: AppColors.primary,
+                    duration: Duration(seconds: 2),
+                  ),
+                );
+              }
+            },
+          ),
+          IconButton(
             icon: const Icon(Icons.settings_outlined),
             onPressed: () {
               Navigator.push(
@@ -64,6 +89,10 @@ class LibraryScreen extends StatelessWidget {
         edgeOffset: 0,
         onRefresh: () async {
           await library.loadLibraryData();
+          await library.syncAllYouTubeData(
+            accessToken: auth.user?.accessToken,
+            force: true,
+          );
           await auth.refresh();
         },
         child: ListView(

@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 class GamaThumbnail extends StatefulWidget {
@@ -59,19 +58,24 @@ class _GamaThumbnailState extends State<GamaThumbnail> {
       }
     }
 
-    // 1. Provided thumbnail URLs
+    // 1. High-speed Google YouTube Image CDN (guaranteed 100% available for any valid video ID)
+    final cleanId = widget.videoId.trim();
+    if (cleanId.isNotEmpty) {
+      addUrl('https://i.ytimg.com/vi/$cleanId/hqdefault.jpg');
+      addUrl('https://img.youtube.com/vi/$cleanId/hqdefault.jpg');
+      addUrl('https://i.ytimg.com/vi/$cleanId/mqdefault.jpg');
+    }
+
+    // 2. Provided video thumbnail URLs
     addUrl(widget.highThumbnailUrl);
     addUrl(widget.thumbnailUrl);
     addUrl(widget.standardThumbnailUrl);
 
-    // 2. High Quality & Standard YouTube CDN fallbacks
-    if (widget.videoId.isNotEmpty) {
-      addUrl('https://i.ytimg.com/vi/${widget.videoId}/hqdefault.jpg');
-      addUrl('https://img.youtube.com/vi/${widget.videoId}/hqdefault.jpg');
-      addUrl('https://i.ytimg.com/vi/${widget.videoId}/mqdefault.jpg');
-      addUrl('https://img.youtube.com/vi/${widget.videoId}/mqdefault.jpg');
-      addUrl('https://i.ytimg.com/vi/${widget.videoId}/sddefault.jpg');
-      addUrl('https://img.youtube.com/vi/${widget.videoId}/default.jpg');
+    // 3. Additional standard YouTube CDNs
+    if (cleanId.isNotEmpty) {
+      addUrl('https://img.youtube.com/vi/$cleanId/mqdefault.jpg');
+      addUrl('https://i.ytimg.com/vi/$cleanId/sddefault.jpg');
+      addUrl('https://img.youtube.com/vi/$cleanId/default.jpg');
     }
 
     _candidates = list;
@@ -101,13 +105,11 @@ class _GamaThumbnailState extends State<GamaThumbnail> {
 
       content = Image.network(
         activeUrl,
+        key: ValueKey(activeUrl), // Forces fresh image resolution on fallback
         width: widget.width,
         height: widget.height,
         fit: widget.fit,
-        // CRITICAL: NEVER pass cacheWidth on Flutter Web as it throws UnimplementedError
-        // and breaks image decoding across CanvasKit / HTML.
-        cacheWidth: kIsWeb ? null : widget.cacheWidth,
-        filterQuality: FilterQuality.medium,
+        filterQuality: FilterQuality.low,
         frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
           if (wasSynchronouslyLoaded || frame != null) {
             return child;
@@ -118,8 +120,8 @@ class _GamaThumbnailState extends State<GamaThumbnail> {
             color: placeholderColor,
             child: const Center(
               child: SizedBox(
-                width: 24,
-                height: 24,
+                width: 22,
+                height: 22,
                 child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white24),
               ),
             ),
@@ -132,7 +134,7 @@ class _GamaThumbnailState extends State<GamaThumbnail> {
             height: widget.height,
             color: placeholderColor,
             child: const Center(
-              child: Icon(Icons.play_circle_outline_rounded, color: Colors.white38, size: 38),
+              child: Icon(Icons.play_circle_outline_rounded, color: Colors.white38, size: 36),
             ),
           );
         },
@@ -166,7 +168,7 @@ class _GamaThumbnailState extends State<GamaThumbnail> {
       child: Center(
         child: Icon(
           Icons.play_arrow_rounded,
-          size: 42,
+          size: 40,
           color: isDark ? Colors.white24 : Colors.black26,
         ),
       ),

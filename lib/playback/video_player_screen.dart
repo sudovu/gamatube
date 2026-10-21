@@ -42,7 +42,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> with WidgetsBindi
   List<Video> _relatedVideos = [];
   String? _aiSummary;
   bool _isGeneratingSummary = false;
-  bool _isBackgroundAudioEnabled = true; // Enabled by default for flawless YouTube-like background playback
+  bool _isPlaying = true;
   bool _isPiPActive = false;
   bool _isDownloading = false;
   double _downloadProgress = 0.0;
@@ -79,20 +79,26 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> with WidgetsBindi
       if (state == AppLifecycleState.paused ||
           state == AppLifecycleState.inactive ||
           state == AppLifecycleState.hidden) {
-        if (settings.pipEnabled && !_isPiPActive) {
+        // Only enter PiP and continue playback if video is actively playing!
+        // When video is paused, do NOT open in PiP mode!
+        if (_isPlaying && settings.pipEnabled && !_isPiPActive) {
           _enterNativePiP();
         }
-        _controller.playVideo();
-        // Crucial: Android WebView can dispatch an internal pause event 200-500ms after app minimize
-        // Enforce play commands to ensure continuous background audio
-        Future.delayed(const Duration(milliseconds: 300), () {
-          if (mounted) _controller.playVideo();
-        });
-        Future.delayed(const Duration(milliseconds: 800), () {
-          if (mounted) _controller.playVideo();
-        });
+        if (_isPlaying) {
+          _controller.playVideo();
+          // Crucial: Android WebView can dispatch an internal pause event 200-500ms after app minimize
+          // Enforce play commands to ensure continuous background audio
+          Future.delayed(const Duration(milliseconds: 300), () {
+            if (mounted && _isPlaying) _controller.playVideo();
+          });
+          Future.delayed(const Duration(milliseconds: 800), () {
+            if (mounted && _isPlaying) _controller.playVideo();
+          });
+        }
       } else if (state == AppLifecycleState.resumed) {
-        _controller.playVideo();
+        if (_isPlaying) {
+          _controller.playVideo();
+        }
       }
     } else {
       if (state == AppLifecycleState.paused) {
@@ -180,10 +186,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> with WidgetsBindi
   void didChangeDependencies() {
     super.didChangeDependencies();
     final library = context.read<LibraryProvider>();
-    final settings = context.read<SettingsProvider>();
     _isLiked = library.isVideoLiked(widget.video.id);
     _isSubscribed = library.isChannelSubscribed(widget.video.channelTitle);
-    _isBackgroundAudioEnabled = settings.settings.backgroundAudioEnabled;
   }
 
   void _initPlayer() {
@@ -201,7 +205,15 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> with WidgetsBindi
     _controller.listen((event) {
       if (!mounted) return;
       final state = event.playerState;
-      if (state == PlayerState.ended) {
+      if (state == PlayerState.playing) {
+        _isPlaying = true;
+        _mediaChannel.invokeMethod('updatePlaybackState', {'isPlaying': true}).catchError((_) {});
+      } else if (state == PlayerState.paused) {
+        _isPlaying = false;
+        _mediaChannel.invokeMethod('updatePlaybackState', {'isPlaying': false}).catchError((_) {});
+      } else if (state == PlayerState.ended) {
+        _isPlaying = false;
+        _mediaChannel.invokeMethod('updatePlaybackState', {'isPlaying': false}).catchError((_) {});
         if (_isLooping) {
           _controller.seekTo(seconds: 0);
           _controller.playVideo();
@@ -390,15 +402,15 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> with WidgetsBindi
               ],
             ),
           ),
-        // Top Player Navigation & Action Strip
+        // Top Player Navigation & Action Strip (YouTube Minimalist Aesthetic)
         Container(
           color: Colors.black,
           padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
           child: Row(
             children: [
               IconButton(
-                icon: const Icon(Icons.arrow_back_rounded, color: Colors.white, size: 22),
-                tooltip: 'Back',
+                icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Colors.white, size: 28),
+                tooltip: 'Minimize',
                 onPressed: () async {
                   await context.read<LibraryProvider>().loadLibraryData();
                   if (!mounted) return;
@@ -406,32 +418,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> with WidgetsBindi
                 },
               ),
               const Spacer(),
-              // Rewind 10s
-              Tooltip(
-                message: 'Rewind 10s',
-                child: IconButton(
-                  icon: const Icon(Icons.replay_10_rounded, color: Colors.white, size: 22),
-                  onPressed: () {
-                    playback.seekRewind(10);
-                    _controller.seekTo(
-                      seconds: (playback.currentPosition.inSeconds.toDouble() - 10).clamp(0, double.infinity),
-                    );
-                  },
-                ),
-              ),
-              // Forward 10s
-              Tooltip(
-                message: 'Forward 10s',
-                child: IconButton(
-                  icon: const Icon(Icons.forward_10_rounded, color: Colors.white, size: 22),
-                  onPressed: () {
-                    playback.seekForward(10);
-                    _controller.seekTo(
-                      seconds: playback.currentPosition.inSeconds.toDouble() + 10,
-                    );
-                  },
-                ),
-              ),
               // Autoplay switch
               Tooltip(
                 message: _isAutoplayEnabled ? 'Autoplay is on' : 'Autoplay is off',
@@ -452,42 +438,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> with WidgetsBindi
                   },
                 ),
               ),
-              // Background Audio Mode toggle
-              Tooltip(
-                message: _isBackgroundAudioEnabled ? 'Background Play Active' : 'Enable Background Play',
-                child: IconButton(
-                  icon: Icon(
-                    _isBackgroundAudioEnabled ? Icons.headphones_rounded : Icons.headphones_outlined,
-                    color: _isBackgroundAudioEnabled ? AppColors.primary : Colors.white,
-                    size: 20,
-                  ),
-                  onPressed: () {
-                    setState(() => _isBackgroundAudioEnabled = !_isBackgroundAudioEnabled);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(_isBackgroundAudioEnabled
-                            ? 'Background Audio Playback Enabled'
-                            : 'Background Audio Playback Disabled'),
-                        duration: const Duration(seconds: 1),
-                      ),
-                    );
-                  },
-                ),
-              ),
-              // Picture-in-Picture (PiP) toggle
-              Tooltip(
-                message: _isPiPActive ? 'Exit PiP' : 'Picture-in-Picture',
-                child: IconButton(
-                  icon: Icon(
-                    _isPiPActive ? Icons.picture_in_picture_alt_rounded : Icons.picture_in_picture_alt_outlined,
-                    color: _isPiPActive ? AppColors.primary : Colors.white,
-                    size: 20,
-                  ),
-                  onPressed: () async {
-                    await _enterNativePiP();
-                  },
-                ),
-              ),
               // Captions toggle
               Tooltip(
                 message: 'Subtitles/CC',
@@ -495,7 +445,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> with WidgetsBindi
                   icon: Icon(
                     _isCaptionsEnabled ? Icons.closed_caption_rounded : Icons.closed_caption_outlined,
                     color: _isCaptionsEnabled ? Colors.white : Colors.white60,
-                    size: 22,
+                    size: 20,
                   ),
                   onPressed: () {
                     setState(() => _isCaptionsEnabled = !_isCaptionsEnabled);

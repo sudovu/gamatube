@@ -104,7 +104,7 @@ class MainActivity : FlutterActivity() {
                                 setPictureInPictureParams(
                                     PictureInPictureParams.Builder()
                                         .setAspectRatio(Rational(16, 9))
-                                        .setAutoEnterEnabled(true)
+                                        .setAutoEnterEnabled(isPlaying)
                                         .build()
                                 )
                             } catch (_: Exception) {}
@@ -120,6 +120,18 @@ class MainActivity : FlutterActivity() {
                         currentPositionMs = pos
                         if (dur > 0L) currentDurationMs = dur
                         isPlaying = playing
+
+                        // Dynamically update auto PiP: disable PiP when paused!
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                            try {
+                                setPictureInPictureParams(
+                                    PictureInPictureParams.Builder()
+                                        .setAspectRatio(Rational(16, 9))
+                                        .setAutoEnterEnabled(isPlaying)
+                                        .build()
+                                )
+                            } catch (_: Exception) {}
+                        }
 
                         mediaService?.updatePosition(currentPositionMs, currentDurationMs, isPlaying)
                         result.success(true)
