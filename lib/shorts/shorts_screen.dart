@@ -9,7 +9,12 @@ import '../theme/app_colors.dart';
 
 class ShortsScreen extends StatefulWidget {
   final bool isScreenActive;
-  const ShortsScreen({super.key, this.isScreenActive = false});
+  final Video? initialVideo;
+  const ShortsScreen({
+    super.key,
+    this.isScreenActive = false,
+    this.initialVideo,
+  });
 
   @override
   State<ShortsScreen> createState() => _ShortsScreenState();
@@ -26,12 +31,25 @@ class _ShortsScreenState extends State<ShortsScreen> {
   @override
   void initState() {
     super.initState();
+    if (widget.initialVideo != null) {
+      _shorts = [widget.initialVideo!];
+      _seenShortIds.add(widget.initialVideo!.id);
+      _isLoading = false;
+    }
     _loadShorts();
   }
 
   bool _isLoadingMore = false;
   int _shortsSeed = 0;
   final Set<String> _seenShortIds = {};
+
+  bool _isStrictShort(Video v) {
+    if (v.duration != null && v.duration!.inSeconds > 70) return false;
+    final isShortDuration = v.duration != null && v.duration!.inSeconds <= 60;
+    final hasShortTag = v.description.toLowerCase().contains('#shorts') ||
+        v.title.toLowerCase().contains('#shorts');
+    return isShortDuration || hasShortTag;
+  }
 
   Future<void> _loadShorts({bool refresh = false}) async {
     final service = context.read<VideoPlatformService>();
@@ -47,24 +65,57 @@ class _ShortsScreenState extends State<ShortsScreen> {
       if (refresh) _shortsSeed++;
 
       final videos = await service.searchVideos(query);
-      final filtered = videos.where((v) {
-        final isShortDuration = v.duration != null && v.duration!.inSeconds <= 60;
-        final hasShortTag = v.description.toLowerCase().contains('#shorts') ||
-            v.title.toLowerCase().contains('#shorts');
-        return isShortDuration || hasShortTag;
-      }).toList();
+      final filtered = videos.where(_isStrictShort).toList();
 
       final seen = <String>{};
       final deduplicated = filtered.where((v) => seen.add(v.id)).toList();
 
       if (mounted) {
         setState(() {
-          if (refresh && _shorts.isNotEmpty) {
-            final currentIds = _shorts.map((v) => v.id).toSet();
-            final fresh = deduplicated.where((v) => !currentIds.contains(v.id)).toList();
-            _shorts = fresh.isNotEmpty ? fresh : deduplicated;
+          List<Video> combined;
+          if (deduplicated.isNotEmpty) {
+            if (widget.initialVideo != null) {
+              final rest = deduplicated.where((v) => v.id != widget.initialVideo!.id).toList();
+              combined = [widget.initialVideo!, ...rest];
+            } else {
+              combined = deduplicated;
+            }
           } else {
-            _shorts = deduplicated.isNotEmpty ? deduplicated : videos.take(10).toList();
+            // If search yielded no strict shorts, fetch curated fallback
+            combined = _shorts;
+          }
+
+          if (combined.isEmpty) {
+            _loadFallbackShorts(service);
+            return;
+          }
+
+          _shorts = combined;
+          _seenShortIds.addAll(_shorts.map((v) => v.id));
+          _isLoading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        await _loadFallbackShorts(service);
+      }
+    }
+  }
+
+  Future<void> _loadFallbackShorts(VideoPlatformService service) async {
+    try {
+      final fallback = await service.getHomeFeed();
+      final filtered = fallback.where(_isStrictShort).toList();
+      final seen = <String>{};
+      final deduplicated = filtered.where((v) => seen.add(v.id)).toList();
+
+      if (mounted) {
+        setState(() {
+          if (widget.initialVideo != null) {
+            final rest = deduplicated.where((v) => v.id != widget.initialVideo!.id).toList();
+            _shorts = [widget.initialVideo!, ...rest];
+          } else {
+            _shorts = deduplicated;
           }
           _seenShortIds.addAll(_shorts.map((v) => v.id));
           _isLoading = false;
@@ -72,22 +123,7 @@ class _ShortsScreenState extends State<ShortsScreen> {
       }
     } catch (_) {
       if (mounted) {
-        final fallback = await service.getHomeFeed();
-        final filtered = fallback.where((v) {
-          final isShortDuration = v.duration != null && v.duration!.inSeconds <= 60;
-          final hasShortTag = v.description.toLowerCase().contains('#shorts') ||
-              v.title.toLowerCase().contains('#shorts');
-          return isShortDuration || hasShortTag;
-        }).toList();
-
-        final seen = <String>{};
-        final deduplicated = filtered.where((v) => seen.add(v.id)).toList();
-
-        setState(() {
-          _shorts = deduplicated.isNotEmpty ? deduplicated : fallback.take(5).toList();
-          _seenShortIds.addAll(_shorts.map((v) => v.id));
-          _isLoading = false;
-        });
+        setState(() => _isLoading = false);
       }
     }
   }
@@ -107,12 +143,10 @@ class _ShortsScreenState extends State<ShortsScreen> {
       final q = queries[_shortsSeed % queries.length];
       final more = await service.searchVideos(q);
 
-      final filtered = more.where((v) {
-        final isShortDuration = v.duration != null && v.duration!.inSeconds <= 60;
-        final hasShortTag = v.description.toLowerCase().contains('#shorts') ||
-            v.title.toLowerCase().contains('#shorts');
-        return isShortDuration || hasShortTag;
-      }).where((v) => !_shorts.any((existing) => existing.id == v.id) && !_seenShortIds.contains(v.id)).toList();
+      final filtered = more
+          .where(_isStrictShort)
+          .where((v) => !_shorts.any((existing) => existing.id == v.id) && !_seenShortIds.contains(v.id))
+          .toList();
 
       final seen = <String>{};
       final uniqueNew = filtered.where((v) => seen.add(v.id)).toList();
@@ -124,15 +158,6 @@ class _ShortsScreenState extends State<ShortsScreen> {
           _isLoadingMore = false;
         });
       } else {
-        if (mounted && more.isNotEmpty) {
-          final anyNew = more.where((v) => !_shorts.any((existing) => existing.id == v.id)).toList();
-          if (anyNew.isNotEmpty) {
-            setState(() {
-              _shorts.addAll(anyNew.take(4));
-              _seenShortIds.addAll(anyNew.map((v) => v.id));
-            });
-          }
-        }
         _isLoadingMore = false;
       }
     } catch (_) {
@@ -548,21 +573,35 @@ class _ShortItemViewState extends State<_ShortItemView> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppColors.primary,
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: const Text(
-                  'SHORTS',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w900,
-                    fontSize: 13,
-                    letterSpacing: 0.5,
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (Navigator.canPop(context)) ...[
+                    IconButton(
+                      icon: const Icon(Icons.arrow_back_rounded, color: Colors.white, size: 24),
+                      onPressed: () => Navigator.pop(context),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                    ),
+                    const SizedBox(width: 10),
+                  ],
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Text(
+                      'SHORTS',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 13,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
                   ),
-                ),
+                ],
               ),
               Row(
                 children: [

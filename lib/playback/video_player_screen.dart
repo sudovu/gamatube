@@ -216,10 +216,10 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> with WidgetsBindi
       params: const YoutubePlayerParams(
         showControls: true,
         showFullscreenButton: true,
-        strictRelatedVideos: false,
+        strictRelatedVideos: true,
         enableCaption: true,
         playsInline: true,
-        privacyEnhancedMode: false,
+        privacyEnhancedMode: true,
       ),
     );
 
@@ -232,7 +232,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> with WidgetsBindi
         });
       }
       final state = event.playerState;
-      if (state == PlayerState.cued) {
+      if (state == PlayerState.cued || state == PlayerState.unStarted) {
         _controller.playVideo();
       }
       if (state == PlayerState.playing) {

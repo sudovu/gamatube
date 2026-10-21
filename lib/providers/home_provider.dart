@@ -7,6 +7,7 @@ class HomeProvider extends ChangeNotifier {
   final VideoPlatformService _platformService;
   List<Video> _feedVideos = [];
   List<Video> _trendingVideos = [];
+  List<Video> _shorts = [];
   bool _isLoading = false;
   bool _isLoadingMore = false;
   Failure? _error;
@@ -36,6 +37,7 @@ class HomeProvider extends ChangeNotifier {
 
   List<Video> get feedVideos => _feedVideos;
   List<Video> get trendingVideos => _trendingVideos;
+  List<Video> get shorts => _shorts;
   bool get isLoading => _isLoading;
   bool get isLoadingMore => _isLoadingMore;
   Failure? get error => _error;
@@ -88,6 +90,18 @@ class HomeProvider extends ChangeNotifier {
         // Combine all candidates and deduplicate
         final candidates = _deduplicate([...searched, ...feed, ...trending]);
 
+        // Extract verified shorts only
+        final shortsCandidates = candidates.where((v) {
+          final isShortDuration = v.duration != null && v.duration!.inSeconds <= 60;
+          final hasShortTag = v.description.toLowerCase().contains('#shorts') ||
+              v.title.toLowerCase().contains('#shorts');
+          if (v.duration != null && v.duration!.inSeconds > 70) return false;
+          return isShortDuration || hasShortTag;
+        }).toList();
+        if (shortsCandidates.isNotEmpty) {
+          _shorts = shortsCandidates.take(8).toList();
+        }
+
         // Prioritize videos that haven't been shown yet this session
         final unseen = candidates.where((v) => 
           !_seenVideoIds.contains(v.id) && !_feedVideos.any((e) => e.id == v.id)
@@ -118,6 +132,29 @@ class HomeProvider extends ChangeNotifier {
         final initial = _deduplicate([...feed, ...trending]);
         _feedVideos = initial.take(15).toList();
         _seenVideoIds.addAll(_feedVideos.map((v) => v.id));
+
+        // Extract verified shorts only
+        final shortsCandidates = initial.where((v) {
+          final isShortDuration = v.duration != null && v.duration!.inSeconds <= 60;
+          final hasShortTag = v.description.toLowerCase().contains('#shorts') ||
+              v.title.toLowerCase().contains('#shorts');
+          if (v.duration != null && v.duration!.inSeconds > 70) return false;
+          return isShortDuration || hasShortTag;
+        }).toList();
+        if (shortsCandidates.isNotEmpty) {
+          _shorts = shortsCandidates.take(8).toList();
+        } else {
+          try {
+            final searchedShorts = await _platformService.searchVideos('shorts');
+            _shorts = searchedShorts.where((v) {
+              final isShortDuration = v.duration != null && v.duration!.inSeconds <= 60;
+              final hasShortTag = v.description.toLowerCase().contains('#shorts') ||
+                  v.title.toLowerCase().contains('#shorts');
+              if (v.duration != null && v.duration!.inSeconds > 70) return false;
+              return isShortDuration || hasShortTag;
+            }).take(8).toList();
+          } catch (_) {}
+        }
       }
 
       _isLoading = false;

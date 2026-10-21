@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/video.dart';
 import '../playback/video_player_screen.dart';
+import '../shorts/shorts_screen.dart';
 import '../providers/auth_provider.dart';
 import '../providers/home_provider.dart';
 import '../providers/library_provider.dart';
@@ -309,7 +310,7 @@ class _HomeScreenState extends State<HomeScreen> {
               // Feed with YouTube-style Shorts Shelf inserted
               SliverPadding(
                 padding: const EdgeInsets.only(top: 4, bottom: 16),
-                sliver: _buildResponsiveVideoFeed(context, home.feedVideos),
+                sliver: _buildResponsiveVideoFeed(context, home.feedVideos, shorts: home.shorts),
               ),
               if (home.isLoadingMore)
                 const SliverToBoxAdapter(
@@ -405,7 +406,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildResponsiveVideoFeed(BuildContext context, List<Video> videos) {
+  Widget _buildResponsiveVideoFeed(BuildContext context, List<Video> videos, {List<Video> shorts = const []}) {
     return SliverLayoutBuilder(
       builder: (context, constraints) {
         final width = constraints.crossAxisExtent;
@@ -417,11 +418,11 @@ class _HomeScreenState extends State<HomeScreen> {
           return SliverList(
             delegate: SliverChildBuilderDelegate(
               (context, index) {
-                // Insert Shorts Shelf at index 2
-                if (index == 2 && videos.length > 4) {
+                // Insert Shorts Shelf at index 2 if shorts are available
+                if (index == 2 && shorts.isNotEmpty) {
                   return Column(
                     children: [
-                      _buildShortsShelf(context, videos.skip(2).take(5).toList()),
+                      _buildShortsShelf(context, shorts),
                       const Divider(thickness: 4, height: 28),
                       VideoCard(
                         video: videos[index],
@@ -507,7 +508,17 @@ class _HomeScreenState extends State<HomeScreen> {
               itemBuilder: (context, index) {
                 final short = shorts[index];
                 return InkWell(
-                  onTap: () => _openPlayer(context, short),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => ShortsScreen(
+                          isScreenActive: true,
+                          initialVideo: short,
+                        ),
+                      ),
+                    );
+                  },
                   borderRadius: BorderRadius.circular(12),
                   child: SizedBox(
                     width: 140,
