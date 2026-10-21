@@ -428,20 +428,20 @@ class LibraryProvider extends ChangeNotifier {
             likeCount: 750000,
           ),
           const Video(
-            id: 'b005i19Q7i8',
+            id: 'M576WGiDBdQ',
             title: 'Apple Vision Pro Review: Tomorrow\'s Tech Today!',
             description: 'Marques Brownlee reviews Apple\'s Spatial Computer, the Vision Pro. #tech #mkbhd #apple',
-            thumbnailUrl: 'https://i.ytimg.com/vi/b005i19Q7i8/hqdefault.jpg',
+            thumbnailUrl: 'https://i.ytimg.com/vi/M576WGiDBdQ/hqdefault.jpg',
             channelId: 'UCBJycsmduvYEL83R_U4JriQ',
             channelTitle: 'Marques Brownlee',
             viewCount: 18500000,
             likeCount: 890000,
           ),
           const Video(
-            id: 'ER3jW1U5V8w',
+            id: 'TNhaISOUy6Q',
             title: '100+ Computer Science Concepts Explained',
             description: 'Learn the most important computer science fundamentals in one high-density video. #tech #code #fireship',
-            thumbnailUrl: 'https://i.ytimg.com/vi/ER3jW1U5V8w/hqdefault.jpg',
+            thumbnailUrl: 'https://i.ytimg.com/vi/TNhaISOUy6Q/hqdefault.jpg',
             channelId: 'UCsBjURrPoezykLs9EqgamOA',
             channelTitle: 'Fireship',
             viewCount: 2800000,
@@ -470,10 +470,10 @@ class LibraryProvider extends ChangeNotifier {
         ),
         WatchHistoryItem(
           video: const Video(
-            id: 'b005i19Q7i8',
+            id: 'M576WGiDBdQ',
             title: 'Apple Vision Pro Review: Tomorrow\'s Tech Today!',
             description: 'Marques Brownlee reviews Apple\'s Spatial Computer, the Vision Pro. #tech #mkbhd #apple',
-            thumbnailUrl: 'https://i.ytimg.com/vi/b005i19Q7i8/hqdefault.jpg',
+            thumbnailUrl: 'https://i.ytimg.com/vi/M576WGiDBdQ/hqdefault.jpg',
             channelId: 'UCBJycsmduvYEL83R_U4JriQ',
             channelTitle: 'Marques Brownlee',
             viewCount: 18500000,
@@ -486,10 +486,10 @@ class LibraryProvider extends ChangeNotifier {
         ),
         WatchHistoryItem(
           video: const Video(
-            id: 'ER3jW1U5V8w',
+            id: 'TNhaISOUy6Q',
             title: '100+ Computer Science Concepts Explained',
             description: 'Learn the most important computer science fundamentals in one high-density video. #tech #code #fireship',
-            thumbnailUrl: 'https://i.ytimg.com/vi/ER3jW1U5V8w/hqdefault.jpg',
+            thumbnailUrl: 'https://i.ytimg.com/vi/TNhaISOUy6Q/hqdefault.jpg',
             channelId: 'UCsBjURrPoezykLs9EqgamOA',
             channelTitle: 'Fireship',
             viewCount: 2800000,
@@ -502,10 +502,10 @@ class LibraryProvider extends ChangeNotifier {
         ),
         WatchHistoryItem(
           video: const Video(
-            id: '4p0Mv3N_t-8',
+            id: 'L_Guz73e6fw',
             title: 'Sam Altman: OpenAI, GPT-5, Sora, and AGI | Lex Fridman Podcast',
             description: 'Sam Altman discusses OpenAI, GPT-5, Sora, and the future of AI. #podcasts #ai #lexfridman',
-            thumbnailUrl: 'https://i.ytimg.com/vi/4p0Mv3N_t-8/hqdefault.jpg',
+            thumbnailUrl: 'https://i.ytimg.com/vi/L_Guz73e6fw/hqdefault.jpg',
             channelId: 'UCSHZKyawb77ixDdsGog4iWA',
             channelTitle: 'Lex Fridman',
             viewCount: 5200000,

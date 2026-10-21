@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:youtube_player_iframe/youtube_player_iframe.dart';
 import '../api/video_platform_service.dart';
 import '../models/channel.dart';
@@ -47,6 +48,24 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> with WidgetsBindi
   bool _isDownloading = false;
   double _downloadProgress = 0.0;
   String? _downloadedQuality;
+  bool _hasPlaybackError = false;
+  String _errorMessage = '';
+
+  String _resolveErrorMessage(YoutubeError error) {
+    switch (error) {
+      case YoutubeError.notEmbeddable:
+      case YoutubeError.sameAsNotEmbeddable:
+      case YoutubeError.sameAsNotEmbeddable2:
+        return 'The video publisher has restricted playback in third-party embedded apps.';
+      case YoutubeError.videoNotFound:
+      case YoutubeError.cannotFindVideo:
+        return 'This video is currently unavailable or has been removed.';
+      case YoutubeError.html5Error:
+        return 'HTML5 playback decoder error encountered for this video format.';
+      default:
+        return 'Playback was interrupted or restricted by the video host.';
+    }
+  }
 
   @override
   void initState() {
@@ -197,15 +216,27 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> with WidgetsBindi
       params: const YoutubePlayerParams(
         showControls: true,
         showFullscreenButton: true,
-        strictRelatedVideos: true,
+        strictRelatedVideos: false,
         enableCaption: true,
+        origin: 'https://www.youtube.com',
+        playsInline: true,
+        privacyEnhancedMode: false,
       ),
     );
 
     _controller.listen((event) {
       if (!mounted) return;
+      if (event.hasError) {
+        setState(() {
+          _hasPlaybackError = true;
+          _errorMessage = _resolveErrorMessage(event.error);
+        });
+      }
       final state = event.playerState;
       if (state == PlayerState.playing) {
+        if (_hasPlaybackError) {
+          setState(() => _hasPlaybackError = false);
+        }
         _isPlaying = true;
         _mediaChannel.invokeMethod('updatePlaybackState', {'isPlaying': true}).catchError((_) {});
       } else if (state == PlayerState.paused) {
@@ -372,6 +403,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> with WidgetsBindi
   }
 
   Widget _buildPlayerView(PlaybackProvider playback) {
+    final theme = Theme.of(context);
     return Column(
       children: [
         if (playback.savedResumePosition != null)
@@ -482,14 +514,118 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> with WidgetsBindi
             ),
             AspectRatio(
               aspectRatio: 16 / 9,
-              child: YoutubePlayer(
-                controller: _controller,
-                aspectRatio: 16 / 9,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  YoutubePlayer(
+                    controller: _controller,
+                    aspectRatio: 16 / 9,
+                  ),
+                  if (_hasPlaybackError)
+                    _buildPlaybackErrorOverlay(theme),
+                ],
               ),
             ),
           ],
         ),
       ],
+    );
+  }
+
+  Widget _buildPlaybackErrorOverlay(ThemeData theme) {
+    return Container(
+      color: Colors.black.withAlpha(240),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      child: Center(
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.play_disabled_rounded,
+                color: AppColors.primary,
+                size: 38,
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Playback Restricted by Publisher',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 14,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                _errorMessage.isNotEmpty
+                    ? _errorMessage
+                    : 'The video owner does not permit playback in embedded players.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.white.withAlpha(190),
+                  fontSize: 12,
+                ),
+              ),
+              const SizedBox(height: 14),
+              Wrap(
+                alignment: WrapAlignment.center,
+                spacing: 10,
+                runSpacing: 8,
+                children: [
+                  ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                    ),
+                    icon: const Icon(Icons.open_in_new_rounded, size: 15),
+                    label: const Text('Watch on YouTube', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                    onPressed: () async {
+                      final url = Uri.parse('https://www.youtube.com/watch?v=${widget.video.id}');
+                      if (await canLaunchUrl(url)) {
+                        await launchUrl(url, mode: LaunchMode.externalApplication);
+                      }
+                    },
+                  ),
+                  if (_relatedVideos.isNotEmpty)
+                    OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.white,
+                        side: const BorderSide(color: Colors.white38),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                      ),
+                      icon: const Icon(Icons.skip_next_rounded, size: 15),
+                      label: const Text('Play Next', style: TextStyle(fontSize: 12)),
+                      onPressed: () {
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => VideoPlayerScreen(video: _relatedVideos.first),
+                          ),
+                        );
+                      },
+                    ),
+                  TextButton.icon(
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.white70,
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    ),
+                    icon: const Icon(Icons.refresh_rounded, size: 15),
+                    label: const Text('Retry', style: TextStyle(fontSize: 12)),
+                    onPressed: () {
+                      setState(() => _hasPlaybackError = false);
+                      _controller.loadVideoById(videoId: widget.video.id);
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
