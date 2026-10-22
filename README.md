@@ -15,10 +15,10 @@ GAMATUBE is engineered to deliver a focused, uncluttered video-watching experien
 
 | Platform | Format | Direct Download / Install Links | Instructions |
 | :--- | :--- | :--- | :--- |
-| **Android** | .apk (ARM64) | [Download v1.3.7 APK](https://github.com/sudovu/gamatube/raw/main/releases/GAMATUBE-v1.3.7-arm64.apk) • [Website Mirror](https://gautambhuwan.com.np/downloads/gamatube/GAMATUBE-v1.3.7-arm64.apk) | Direct install on Android 7.0+ |
+| **Android** | .apk (ARM64) | [Download v1.3.9 APK](https://github.com/sudovu/gamatube/raw/main/releases/GAMATUBE-v1.3.9-arm64.apk) • [Website Mirror](https://gautambhuwan.com.np/downloads/gamatube/GAMATUBE-v1.3.9-arm64.apk) | Direct install on Android 7.0+ |
 | **iOS (PWA)** | **Safari Web App** | [Open GAMATUBE Web](https://gautambhuwan.com.np/gamatube/) | **Recommended:** Open in Safari, tap **Share** ➔ **Add to Home Screen**. Instant, no revokes, no computer! |
 | **iOS (OTA)** | **Direct OTA** | [Install via itms-services](itms-services://?action=download-manifest&url=https://gautambhuwan.com.np/downloads/gamatube/manifest.plist) | Tap in Safari on iOS device to trigger native wireless installation |
-| **iOS (IPA)** | .ipa (Sideload) | [Download v1.3.7 .IPA](https://github.com/sudovu/gamatube/raw/main/releases/GAMATUBE-v1.3.7.ipa) • [Website Mirror](https://gautambhuwan.com.np/downloads/gamatube/GAMATUBE-v1.3.7.ipa) | Sideload via AltStore, Sideloadly, TrollStore, or Scarlet |
+| **iOS (IPA)** | .ipa (Sideload) | [Download v1.3.9 .IPA](https://github.com/sudovu/gamatube/raw/main/releases/GAMATUBE-v1.3.9.ipa) • [Website Mirror](https://gautambhuwan.com.np/downloads/gamatube/GAMATUBE-v1.3.9.ipa) | Sideload via AltStore, Sideloadly, TrollStore, or Scarlet |
 | **Web** | Responsive PWA | [https://gautambhuwan.com.np/gamatube/](https://gautambhuwan.com.np/gamatube/) | Works across any modern browser |
 
 ### Standalone Architectural Guarantees

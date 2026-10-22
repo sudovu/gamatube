@@ -143,45 +143,58 @@ class YouTubeV3Service implements VideoPlatformService {
   @override
   Future<List<Video>> getHomeFeed({String? pageToken}) async {
     final key = _apiKey;
-    if (key == null || key.isEmpty) {
-      return _getCuratedFallbackVideos();
+    if (key != null && key.isNotEmpty) {
+      try {
+        final json = await _getWithRetry('videos', {
+          'part': 'snippet,contentDetails,statistics',
+          'chart': 'mostPopular',
+          'maxResults': '20',
+          'pageToken': ?pageToken,
+        });
+
+        final results = _parseVideoList(json);
+        if (results.isNotEmpty) return results;
+      } catch (e) {
+        AppLogger.warning('Failed to load live YouTube feed via API v3: $e');
+      }
     }
 
+    // Live YouTube discovery feed via InnerTube
     try {
-      final json = await _getWithRetry('videos', {
-        'part': 'snippet,contentDetails,statistics',
-        'chart': 'mostPopular',
-        'maxResults': '20',
-        'pageToken': ?pageToken,
-      });
+      final liveFeed = await _innerTubeService.search('trending popular highlights');
+      if (liveFeed.isNotEmpty) return liveFeed;
+    } catch (_) {}
 
-      return _parseVideoList(json);
-    } catch (e) {
-      AppLogger.warning('Failed to load live YouTube feed, using curated fallback', e);
-      return _getCuratedFallbackVideos();
-    }
+    return _getCuratedFallbackVideos();
   }
 
   @override
   Future<List<Video>> getTrending({String? regionCode, String? pageToken}) async {
     final key = _apiKey;
-    if (key == null || key.isEmpty) {
-      return _getCuratedFallbackVideos();
+    if (key != null && key.isNotEmpty) {
+      try {
+        final json = await _getWithRetry('videos', {
+          'part': 'snippet,contentDetails,statistics',
+          'chart': 'mostPopular',
+          'regionCode': regionCode ?? 'US',
+          'maxResults': '20',
+          'pageToken': ?pageToken,
+        });
+
+        final results = _parseVideoList(json);
+        if (results.isNotEmpty) return results;
+      } catch (e) {
+        AppLogger.warning('Failed to load trending via API v3: $e');
+      }
     }
 
+    // Live YouTube trending via InnerTube
     try {
-      final json = await _getWithRetry('videos', {
-        'part': 'snippet,contentDetails,statistics',
-        'chart': 'mostPopular',
-        'regionCode': regionCode ?? 'US',
-        'maxResults': '20',
-        'pageToken': ?pageToken,
-      });
+      final liveTrending = await _innerTubeService.search('trending videos today');
+      if (liveTrending.isNotEmpty) return liveTrending;
+    } catch (_) {}
 
-      return _parseVideoList(json);
-    } catch (e) {
-      return _getCuratedFallbackVideos();
-    }
+    return _getCuratedFallbackVideos();
   }
 
   String? _extractVideoId(String input) {

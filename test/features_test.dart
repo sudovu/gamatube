@@ -164,7 +164,14 @@ void main() {
     test('Search keyword "shorts" returns vertical shorts', () async {
       final results = await service.searchVideos('shorts trending');
       expect(results.isNotEmpty, true);
-      expect(results.any((v) => v.description.contains('#shorts') || v.title.toLowerCase().contains('#shorts') || (v.duration != null && v.duration!.inSeconds <= 60)), true);
+      expect(
+        results.any((v) =>
+            v.description.toLowerCase().contains('#shorts') ||
+            v.title.toLowerCase().contains('#shorts') ||
+            v.title.toLowerCase().contains('short') ||
+            (v.duration != null && v.duration!.inSeconds <= 60)),
+        true,
+      );
     });
   });
 

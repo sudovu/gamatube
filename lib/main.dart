@@ -127,7 +127,12 @@ class GamatubeApp extends StatelessWidget {
           create: (_) => AuthProvider(authService: authService),
         ),
         ChangeNotifierProvider(
-          create: (_) => HomeProvider(platformService: platformService),
+          create: (_) => HomeProvider(
+            platformService: platformService,
+            localStore: localStore,
+            historyRepository: historyRepository,
+            searchRepository: searchRepository,
+          ),
         ),
         ChangeNotifierProvider(
           create: (_) => SearchProvider(
