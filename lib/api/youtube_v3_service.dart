@@ -9,12 +9,14 @@ import '../models/video.dart';
 import '../models/channel.dart';
 import '../models/comment.dart';
 import 'cache_manager.dart';
+import 'innertube_service.dart';
 import 'video_platform_service.dart';
 
 class YouTubeV3Service implements VideoPlatformService {
   final http.Client _client;
   final CacheManager _cacheManager;
   final String? _apiKey;
+  final InnerTubeService _innerTubeService;
 
   // Inflight request deduplication
   final Map<String, Future<dynamic>> _inflightRequests = {};
@@ -22,9 +24,15 @@ class YouTubeV3Service implements VideoPlatformService {
   YouTubeV3Service({
     http.Client? client,
     CacheManager? cacheManager,
+    InnerTubeService? innerTubeService,
     this._apiKey,
   })  : _client = client ?? http.Client(),
-        _cacheManager = cacheManager ?? CacheManager();
+        _cacheManager = cacheManager ?? CacheManager(),
+        _innerTubeService = innerTubeService ??
+            InnerTubeService(
+              client: client,
+              cacheManager: cacheManager,
+            );
 
   @override
   PlatformCapabilities get capabilities => const PlatformCapabilities();
@@ -223,37 +231,48 @@ class YouTubeV3Service implements VideoPlatformService {
     }
 
     final key = _apiKey;
-    if (key == null || key.isEmpty) {
-      return _filterFallbackVideos(query);
+    if (key != null && key.isNotEmpty) {
+      try {
+        final searchJson = await _getWithRetry('search', {
+          'part': 'snippet',
+          'q': query,
+          'type': 'video',
+          'maxResults': '25',
+          'order': ?order,
+          'pageToken': ?pageToken,
+        });
+
+        final items = (searchJson['items'] as List?) ?? [];
+        final videoIds = items
+            .map((i) => i['id']?['videoId'] as String?)
+            .whereType<String>()
+            .join(',');
+
+        if (videoIds.isNotEmpty) {
+          final detailsJson = await _getWithRetry('videos', {
+            'part': 'snippet,contentDetails,statistics',
+            'id': videoIds,
+          });
+
+          final results = _parseVideoList(detailsJson);
+          if (results.isNotEmpty) return results;
+        }
+      } catch (e) {
+        AppLogger.debug('YouTube v3 API search failed, falling back to InnerTube: $e');
+      }
     }
 
+    // Broad live YouTube search via InnerTube
     try {
-      final searchJson = await _getWithRetry('search', {
-        'part': 'snippet',
-        'q': query,
-        'type': 'video',
-        'maxResults': '25',
-        'order': ?order,
-        'pageToken': ?pageToken,
-      });
-
-      final items = (searchJson['items'] as List?) ?? [];
-      final videoIds = items
-          .map((i) => i['id']?['videoId'] as String?)
-          .whereType<String>()
-          .join(',');
-
-      if (videoIds.isEmpty) return [];
-
-      final detailsJson = await _getWithRetry('videos', {
-        'part': 'snippet,contentDetails,statistics',
-        'id': videoIds,
-      });
-
-      return _parseVideoList(detailsJson);
+      final liveResults = await _innerTubeService.search(query);
+      if (liveResults.isNotEmpty) {
+        return liveResults;
+      }
     } catch (e) {
-      return _filterFallbackVideos(query);
+      AppLogger.debug('InnerTube search failed: $e');
     }
+
+    return _filterFallbackVideos(query);
   }
 
   @override

@@ -229,16 +229,16 @@ class HomeProvider extends ChangeNotifier {
     }
   }
 
-  void selectCategory(String category) {
+  Future<void> selectCategory(String category) async {
     if (_selectedCategory == category) return;
     _selectedCategory = category;
     notifyListeners();
     if (category == 'All') {
-      loadHomeContent();
+      await loadHomeContent();
     } else if (category == 'Trending') {
-      _loadTrendingCategory();
+      await _loadTrendingCategory();
     } else {
-      _searchCategoryVideos(category);
+      await _searchCategoryVideos(category);
     }
   }
 
