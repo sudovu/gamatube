@@ -49,6 +49,61 @@ class HomeProvider extends ChangeNotifier {
     ['astronomy space documentary', 'top viral challenges trends', 'lofi beats chill music live', 'deep dive tech analysis'],
   ];
 
+  static final List<Video> _curatedShortsFallback = [
+    Video(
+      id: 'qGL05qUFQTM',
+      title: 'You came back playing in the dirt again #ai #funny #shorts',
+      description: '#shorts',
+      thumbnailUrl: 'https://img.youtube.com/vi/qGL05qUFQTM/hqdefault.jpg',
+      channelId: 'channel_qGL05qUFQTM',
+      channelTitle: 'Viral Shorts',
+      publishedAt: DateTime.now().subtract(const Duration(days: 1)),
+      duration: const Duration(seconds: 35),
+      viewCount: 100000000,
+      likeCount: 4500000,
+      isLive: false,
+    ),
+    Video(
+      id: '1GDkjZm6coU',
+      title: 'Heart-touching Cute Kitten Dance 🐾 #shorts',
+      description: '#shorts',
+      thumbnailUrl: 'https://img.youtube.com/vi/1GDkjZm6coU/hqdefault.jpg',
+      channelId: 'channel_1GDkjZm6coU',
+      channelTitle: 'Cute Moments',
+      publishedAt: DateTime.now().subtract(const Duration(days: 2)),
+      duration: const Duration(seconds: 40),
+      viewCount: 170000000,
+      likeCount: 8200000,
+      isLive: false,
+    ),
+    Video(
+      id: 'UHvbqGeE3gY',
+      title: 'That one Don ladki in school 🏫 #shorts',
+      description: '#shorts',
+      thumbnailUrl: 'https://img.youtube.com/vi/UHvbqGeE3gY/hqdefault.jpg',
+      channelId: 'channel_UHvbqGeE3gY',
+      channelTitle: 'Comedy Shorts',
+      publishedAt: DateTime.now().subtract(const Duration(days: 3)),
+      duration: const Duration(seconds: 45),
+      viewCount: 41000000,
+      likeCount: 1900000,
+      isLive: false,
+    ),
+    Video(
+      id: 'ioIV4l25I00',
+      title: 'Sound test satisfaction #shorts #asmr',
+      description: '#shorts',
+      thumbnailUrl: 'https://img.youtube.com/vi/ioIV4l25I00/hqdefault.jpg',
+      channelId: 'channel_ioIV4l25I00',
+      channelTitle: 'Satisfying Art',
+      publishedAt: DateTime.now().subtract(const Duration(days: 4)),
+      duration: const Duration(seconds: 50),
+      viewCount: 55000000,
+      likeCount: 2300000,
+      isLive: false,
+    ),
+  ];
+
   Future<void>? _activeLoadFuture;
 
   HomeProvider({
@@ -191,9 +246,10 @@ class HomeProvider extends ChangeNotifier {
         queriesToFetch.add(randomPick);
       }
 
-      // Add 2 diverse topics from the rotating discovery pool
+      // Add 2 diverse topics from the rotating discovery pool + shorts discovery
       queriesToFetch.add(discoverySet[0]);
       queriesToFetch.add(discoverySet[1]);
+      queriesToFetch.add('#shorts trending');
 
       // Concurrently query live sources
       final searchTasks = queriesToFetch.map((q) => _platformService.searchVideos(q));
@@ -267,6 +323,8 @@ class HomeProvider extends ChangeNotifier {
         _shorts = unseenShorts.take(8).toList();
       } else if (shortsCandidates.isNotEmpty) {
         _shorts = shortsCandidates.take(8).toList();
+      } else {
+        _shorts = List.from(_curatedShortsFallback);
       }
 
       // Track newly visible videos in the persistent seen registry

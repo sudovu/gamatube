@@ -28,12 +28,96 @@ class _ShortsScreenState extends State<ShortsScreen> {
   final Set<String> _likedShorts = {};
   final Set<String> _subscribedChannels = {};
 
+  static final List<Video> _curatedShorts = [
+    Video(
+      id: 'qGL05qUFQTM',
+      title: 'You came back playing in the dirt again #ai #funny #shorts #trending',
+      description: '#shorts',
+      thumbnailUrl: 'https://img.youtube.com/vi/qGL05qUFQTM/hqdefault.jpg',
+      channelId: 'channel_qGL05qUFQTM',
+      channelTitle: 'Viral Shorts',
+      publishedAt: DateTime.now().subtract(const Duration(days: 1)),
+      duration: const Duration(seconds: 35),
+      viewCount: 100000000,
+      likeCount: 4500000,
+      isLive: false,
+    ),
+    Video(
+      id: '1GDkjZm6coU',
+      title: 'Heart-touching Cute Kitten Dance 🐾 #shorts #kittenrescue',
+      description: '#shorts',
+      thumbnailUrl: 'https://img.youtube.com/vi/1GDkjZm6coU/hqdefault.jpg',
+      channelId: 'channel_1GDkjZm6coU',
+      channelTitle: 'Cute Moments',
+      publishedAt: DateTime.now().subtract(const Duration(days: 2)),
+      duration: const Duration(seconds: 40),
+      viewCount: 170000000,
+      likeCount: 8200000,
+      isLive: false,
+    ),
+    Video(
+      id: 'UHvbqGeE3gY',
+      title: 'That one Don ladki in school 🏫 #shorts #comedy #ytshorts',
+      description: '#shorts',
+      thumbnailUrl: 'https://img.youtube.com/vi/UHvbqGeE3gY/hqdefault.jpg',
+      channelId: 'channel_UHvbqGeE3gY',
+      channelTitle: 'Comedy Shorts',
+      publishedAt: DateTime.now().subtract(const Duration(days: 3)),
+      duration: const Duration(seconds: 45),
+      viewCount: 41000000,
+      likeCount: 1900000,
+      isLive: false,
+    ),
+    Video(
+      id: 'xQ5X0g_wUYw',
+      title: 'Wait for the end 👺🤣 #shorts #comedy #viralvideo',
+      description: '#shorts',
+      thumbnailUrl: 'https://img.youtube.com/vi/xQ5X0g_wUYw/hqdefault.jpg',
+      channelId: 'channel_xQ5X0g_wUYw',
+      channelTitle: 'Laugh Hub',
+      publishedAt: DateTime.now().subtract(const Duration(days: 2)),
+      duration: const Duration(seconds: 30),
+      viewCount: 29000000,
+      likeCount: 1400000,
+      isLive: false,
+    ),
+    Video(
+      id: 'ioIV4l25I00',
+      title: 'Sound test satisfaction #shorts #clay #asmr',
+      description: '#shorts',
+      thumbnailUrl: 'https://img.youtube.com/vi/ioIV4l25I00/hqdefault.jpg',
+      channelId: 'channel_ioIV4l25I00',
+      channelTitle: 'Satisfying Art',
+      publishedAt: DateTime.now().subtract(const Duration(days: 4)),
+      duration: const Duration(seconds: 50),
+      viewCount: 55000000,
+      likeCount: 2300000,
+      isLive: false,
+    ),
+    Video(
+      id: 'p7fZvGjK8mU',
+      title: 'Zach King Magical Mirror Illusion #shorts',
+      description: '#shorts',
+      thumbnailUrl: 'https://img.youtube.com/vi/p7fZvGjK8mU/hqdefault.jpg',
+      channelId: 'channel_zachking',
+      channelTitle: 'Zach King',
+      publishedAt: DateTime.now().subtract(const Duration(days: 5)),
+      duration: const Duration(seconds: 30),
+      viewCount: 88000000,
+      likeCount: 3800000,
+      isLive: false,
+    ),
+  ];
+
   @override
   void initState() {
     super.initState();
     if (widget.initialVideo != null) {
       _shorts = [widget.initialVideo!];
       _seenShortIds.add(widget.initialVideo!.id);
+      _isLoading = false;
+    } else {
+      _shorts = List.from(_curatedShorts);
       _isLoading = false;
     }
     _loadShorts();
@@ -44,10 +128,13 @@ class _ShortsScreenState extends State<ShortsScreen> {
   final Set<String> _seenShortIds = {};
 
   bool _isStrictShort(Video v) {
-    if (v.duration != null && v.duration!.inSeconds > 70) return false;
+    if (v.duration != null && v.duration!.inSeconds > 75) return false;
     final isShortDuration = v.duration != null && v.duration!.inSeconds <= 60;
     final hasShortTag = v.description.toLowerCase().contains('#shorts') ||
-        v.title.toLowerCase().contains('#shorts');
+        v.description.toLowerCase().contains('#short') ||
+        v.title.toLowerCase().contains('#shorts') ||
+        v.title.toLowerCase().contains('#short') ||
+        v.title.toLowerCase().contains('short');
     return isShortDuration || hasShortTag;
   }
 
@@ -55,8 +142,8 @@ class _ShortsScreenState extends State<ShortsScreen> {
     final service = context.read<VideoPlatformService>();
     try {
       final queries = [
-        'shorts viral trending',
-        'shorts funny comedy',
+        '#shorts trending',
+        'shorts viral comedy',
         'shorts magic tricks',
         'shorts sports moments',
         'shorts satisfy craft asmr',
@@ -81,13 +168,7 @@ class _ShortsScreenState extends State<ShortsScreen> {
               combined = deduplicated;
             }
           } else {
-            // If search yielded no strict shorts, fetch curated fallback
-            combined = _shorts;
-          }
-
-          if (combined.isEmpty) {
-            _loadFallbackShorts(service);
-            return;
+            combined = _shorts.isNotEmpty ? _shorts : List.from(_curatedShorts);
           }
 
           _shorts = combined;
@@ -111,11 +192,15 @@ class _ShortsScreenState extends State<ShortsScreen> {
 
       if (mounted) {
         setState(() {
-          if (widget.initialVideo != null) {
-            final rest = deduplicated.where((v) => v.id != widget.initialVideo!.id).toList();
-            _shorts = [widget.initialVideo!, ...rest];
-          } else {
-            _shorts = deduplicated;
+          if (deduplicated.isNotEmpty) {
+            if (widget.initialVideo != null) {
+              final rest = deduplicated.where((v) => v.id != widget.initialVideo!.id).toList();
+              _shorts = [widget.initialVideo!, ...rest];
+            } else {
+              _shorts = deduplicated;
+            }
+          } else if (_shorts.isEmpty) {
+            _shorts = List.from(_curatedShorts);
           }
           _seenShortIds.addAll(_shorts.map((v) => v.id));
           _isLoading = false;
@@ -123,7 +208,12 @@ class _ShortsScreenState extends State<ShortsScreen> {
       }
     } catch (_) {
       if (mounted) {
-        setState(() => _isLoading = false);
+        setState(() {
+          if (_shorts.isEmpty) {
+            _shorts = List.from(_curatedShorts);
+          }
+          _isLoading = false;
+        });
       }
     }
   }

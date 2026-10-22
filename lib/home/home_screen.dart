@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/video.dart';
-import '../playback/video_player_screen.dart';
+import '../providers/playback_provider.dart';
 import '../shorts/shorts_screen.dart';
 import '../providers/auth_provider.dart';
 import '../providers/home_provider.dart';
@@ -15,11 +15,13 @@ import '../widgets/gama_thumbnail.dart';
 import '../widgets/video_card.dart';
 
 class HomeScreen extends StatefulWidget {
+  final ScrollController? scrollController;
   final VoidCallback? onSearchTap;
   final VoidCallback? onProfileTap;
 
   const HomeScreen({
     super.key,
+    this.scrollController,
     this.onSearchTap,
     this.onProfileTap,
   });
@@ -29,12 +31,29 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final ScrollController _scrollController = ScrollController();
+  late final ScrollController _scrollController;
+  bool _createdOwnController = false;
 
   @override
   void initState() {
     super.initState();
+    if (widget.scrollController != null) {
+      _scrollController = widget.scrollController!;
+    } else {
+      _scrollController = ScrollController();
+      _createdOwnController = true;
+    }
     _scrollController.addListener(_onScroll);
+  }
+
+  void scrollToTop() {
+    if (_scrollController.hasClients) {
+      _scrollController.animateTo(
+        0,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOutCubic,
+      );
+    }
   }
 
   void _onScroll() {
@@ -49,7 +68,9 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void dispose() {
     _scrollController.removeListener(_onScroll);
-    _scrollController.dispose();
+    if (_createdOwnController) {
+      _scrollController.dispose();
+    }
     super.dispose();
   }
 
@@ -249,8 +270,8 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
 
-            // Continue Watching section (if any history)
-            if (library.history.isNotEmpty) ...[
+            // Continue Watching section (only on main Home feed when history exists)
+            if (home.selectedCategory == 'All' && library.history.isNotEmpty) ...[
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
@@ -339,14 +360,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return SizedBox(
       width: 220,
       child: InkWell(
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => VideoPlayerScreen(video: video),
-            ),
-          );
-        },
+        onTap: () => _openPlayer(context, video),
         borderRadius: BorderRadius.circular(10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -589,12 +603,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _openPlayer(BuildContext context, Video video) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => VideoPlayerScreen(video: video),
-      ),
-    );
+    context.read<PlaybackProvider>().playVideo(video);
   }
 
   void _showCastDialog(BuildContext context) {

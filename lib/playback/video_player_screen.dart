@@ -18,8 +18,13 @@ import '../widgets/video_card.dart';
 
 class VideoPlayerScreen extends StatefulWidget {
   final Video video;
+  final VoidCallback? onMinimize;
 
-  const VideoPlayerScreen({super.key, required this.video});
+  const VideoPlayerScreen({
+    super.key,
+    required this.video,
+    this.onMinimize,
+  });
 
   @override
   State<VideoPlayerScreen> createState() => _VideoPlayerScreenState();
@@ -77,6 +82,18 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> with WidgetsBindi
     _initPiPChannelHandlers();
   }
 
+  @override
+  void didUpdateWidget(VideoPlayerScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.video.id != widget.video.id) {
+      _hasPlaybackError = false;
+      _errorMessage = '';
+      _controller.loadVideoById(videoId: widget.video.id);
+      _controller.playVideo();
+      _loadMetadata();
+    }
+  }
+
   void _initPiPChannelHandlers() {
     _pipChannel.setMethodCallHandler((call) async {
       if (call.method == 'onPiPModeChanged') {
@@ -117,6 +134,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> with WidgetsBindi
       } else if (state == AppLifecycleState.resumed) {
         if (_isPlaying) {
           _controller.playVideo();
+          if (_hasPlaybackError) {
+            setState(() => _hasPlaybackError = false);
+          }
         }
       }
     } else {
@@ -226,10 +246,18 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> with WidgetsBindi
     _controller.listen((event) {
       if (!mounted) return;
       if (event.hasError) {
-        setState(() {
-          _hasPlaybackError = true;
-          _errorMessage = _resolveErrorMessage(event.error);
-        });
+        // Ignore transient errors while app is not resumed (e.g. backgrounding / minimizing to home screen)
+        if (WidgetsBinding.instance.lifecycleState != AppLifecycleState.resumed) {
+          return;
+        }
+        if (event.error == YoutubeError.notEmbeddable ||
+            event.error == YoutubeError.sameAsNotEmbeddable ||
+            event.error == YoutubeError.sameAsNotEmbeddable2) {
+          setState(() {
+            _hasPlaybackError = true;
+            _errorMessage = _resolveErrorMessage(event.error);
+          });
+        }
       }
       final state = event.playerState;
       if (state == PlayerState.cued || state == PlayerState.unStarted) {
@@ -310,8 +338,12 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> with WidgetsBindi
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _mediaSyncTimer?.cancel();
-    _mediaChannel.invokeMethod('stopPlayback').catchError((_) {});
-    _controller.close();
+    final playback = context.read<PlaybackProvider>();
+    // If the video is no longer the active video, close controller and stop media service
+    if (playback.currentVideo?.id != widget.video.id) {
+      _mediaChannel.invokeMethod('stopPlayback').catchError((_) {});
+      _controller.close();
+    }
     _commentController.dispose();
     super.dispose();
   }
@@ -362,7 +394,14 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> with WidgetsBindi
       },
       child: Focus(
         autofocus: true,
-        child: Scaffold(
+        child: PopScope(
+          canPop: widget.onMinimize == null,
+          onPopInvokedWithResult: (didPop, _) {
+            if (!didPop && widget.onMinimize != null) {
+              widget.onMinimize!();
+            }
+          },
+          child: Scaffold(
           body: SafeArea(
             child: LayoutBuilder(
               builder: (context, constraints) {
@@ -413,7 +452,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> with WidgetsBindi
           ),
         ),
       ),
-    );
+    ),
+  );
   }
 
   Widget _buildPlayerView(PlaybackProvider playback) {
@@ -460,7 +500,12 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> with WidgetsBindi
                 onPressed: () async {
                   await context.read<LibraryProvider>().loadLibraryData();
                   if (!mounted) return;
-                  Navigator.pop(context);
+                  if (widget.onMinimize != null) {
+                    widget.onMinimize!();
+                  } else {
+                    context.read<PlaybackProvider>().minimizePlayer();
+                    Navigator.pop(context);
+                  }
                 },
               ),
               const Spacer(),

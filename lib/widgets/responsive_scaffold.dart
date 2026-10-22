@@ -23,31 +23,54 @@ class ResponsiveScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final playback = context.watch<PlaybackProvider>();
+
     return LayoutBuilder(
       builder: (context, constraints) {
         final isDesktop = constraints.maxWidth >= 900;
         final isTablet = constraints.maxWidth >= 600 && constraints.maxWidth < 900;
 
-        return Scaffold(
-          body: Column(
-            children: [
-              const NetworkStatusBanner(),
-              Expanded(
-                child: Row(
+        return PopScope(
+          canPop: !playback.isPlayerExpanded,
+          onPopInvokedWithResult: (didPop, _) {
+            if (!didPop && playback.isPlayerExpanded) {
+              playback.minimizePlayer();
+            }
+          },
+          child: Scaffold(
+            body: Stack(
+              children: [
+                Column(
                   children: [
-                    if (isDesktop || isTablet)
-                      _buildNavigationRail(context, isDesktop),
-                    Expanded(child: body),
+                    const NetworkStatusBanner(),
+                    Expanded(
+                      child: Row(
+                        children: [
+                          if (isDesktop || isTablet)
+                            _buildNavigationRail(context, isDesktop),
+                          Expanded(child: body),
+                        ],
+                      ),
+                    ),
+                    if (playback.currentVideo != null && !playback.isPlayerExpanded)
+                      _buildMiniPlayer(context),
                   ],
                 ),
-              ),
-              _buildMiniPlayer(context),
-            ],
+                if (playback.currentVideo != null)
+                  Offstage(
+                    offstage: !playback.isPlayerExpanded,
+                    child: VideoPlayerScreen(
+                      video: playback.currentVideo!,
+                      onMinimize: () => playback.minimizePlayer(),
+                    ),
+                  ),
+              ],
+            ),
+            bottomNavigationBar: (isDesktop || isTablet || playback.isPlayerExpanded)
+                ? null
+                : _buildBottomNavigationBar(context),
+            floatingActionButton: floatingActionButton,
           ),
-          bottomNavigationBar: (isDesktop || isTablet)
-              ? null
-              : _buildBottomNavigationBar(context),
-          floatingActionButton: floatingActionButton,
         );
       },
     );
@@ -304,12 +327,7 @@ class ResponsiveScaffold extends StatelessWidget {
           ),
           InkWell(
             onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => VideoPlayerScreen(video: video),
-                ),
-              );
+              playback.expandPlayer();
             },
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),

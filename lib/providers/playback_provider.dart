@@ -10,6 +10,7 @@ class PlaybackProvider extends ChangeNotifier {
 
   Video? _currentVideo;
   bool _isPlaying = false;
+  bool _isPlayerExpanded = false;
   Duration _currentPosition = Duration.zero;
   Duration _totalDuration = Duration.zero;
   double _playbackSpeed = 1.0;
@@ -27,6 +28,7 @@ class PlaybackProvider extends ChangeNotifier {
 
   Video? get currentVideo => _currentVideo;
   bool get isPlaying => _isPlaying;
+  bool get isPlayerExpanded => _isPlayerExpanded;
   Duration get currentPosition => _currentPosition;
   Duration get totalDuration => _totalDuration;
   double get playbackSpeed => _playbackSpeed;
@@ -35,6 +37,41 @@ class PlaybackProvider extends ChangeNotifier {
   bool get captionsEnabled => _captionsEnabled;
   String get currentQuality => _currentQuality;
   Duration? get savedResumePosition => _savedResumePosition;
+
+  Future<void> playVideo(Video video) async {
+    _currentVideo = video;
+    _isPlayerExpanded = true;
+    _isPlaying = true;
+    _currentPosition = Duration.zero;
+    _totalDuration = video.duration ?? const Duration(minutes: 5);
+    _savedResumePosition = null;
+
+    // Check for saved resume position
+    final item = await _historyRepository.getHistoryItem(video.id);
+    if (item != null && item.position.inSeconds > 5 && item.completionPercentage < 0.95) {
+      _savedResumePosition = item.position;
+    }
+
+    notifyListeners();
+
+    // Start periodic position recorder
+    _positionSaveTimer?.cancel();
+    _positionSaveTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+      _saveCurrentPosition();
+    });
+  }
+
+  void expandPlayer() {
+    if (_currentVideo != null) {
+      _isPlayerExpanded = true;
+      notifyListeners();
+    }
+  }
+
+  void minimizePlayer() {
+    _isPlayerExpanded = false;
+    notifyListeners();
+  }
 
   Future<void> loadVideo(Video video) async {
     _currentVideo = video;
@@ -120,6 +157,7 @@ class PlaybackProvider extends ChangeNotifier {
   void closeVideo() {
     _positionSaveTimer?.cancel();
     _currentVideo = null;
+    _isPlayerExpanded = false;
     _isPlaying = false;
     notifyListeners();
   }

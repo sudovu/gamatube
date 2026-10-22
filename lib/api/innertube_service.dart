@@ -106,8 +106,9 @@ class InnerTubeService {
 
   /// HTML scraping fallback for ytInitialData
   Future<List<Video>> _searchHtml(String query, {required int limit}) async {
+    final filter = query.toLowerCase().contains('short') ? '' : '&sp=EgIQAQ%253D%253D';
     final uri = Uri.parse(
-      'https://www.youtube.com/results?search_query=${Uri.encodeComponent(query)}&sp=EgIQAQ%253D%253D',
+      'https://www.youtube.com/results?search_query=${Uri.encodeComponent(query)}$filter',
     );
 
     final response = await _client.get(
@@ -185,10 +186,75 @@ class InnerTubeService {
             }
           }
         }
+
+        // 3. Modern YouTube Shorts shelf (gridShelfViewModel)
+        final gridShelf = item['gridShelfViewModel'];
+        if (gridShelf != null && gridShelf is Map) {
+          final shelfContents = gridShelf['contents'] as List?;
+          if (shelfContents != null) {
+            for (final c in shelfContents) {
+              if (videos.length >= limit) break;
+              if (c is Map && c['shortsLockupViewModel'] != null && c['shortsLockupViewModel'] is Map) {
+                final sl = c['shortsLockupViewModel'] as Map;
+                String? reelId = sl['onTap']?['innertubeCommand']?['reelWatchEndpoint']?['videoId']?.toString();
+                if (reelId == null || reelId.isEmpty) {
+                  final entityId = sl['entityId']?.toString();
+                  if (entityId != null) {
+                    reelId = entityId.replaceAll('shorts-shelf-item-', '');
+                  }
+                }
+                if (reelId != null && reelId.isNotEmpty && !seenIds.contains(reelId)) {
+                  final shortVideo = _parseShortsLockup(sl, reelId);
+                  if (shortVideo != null) {
+                    seenIds.add(reelId);
+                    videos.add(shortVideo);
+                  }
+                }
+              }
+            }
+          }
+        }
       }
     }
 
     return videos;
+  }
+
+  Video? _parseShortsLockup(Map sl, String videoId) {
+    try {
+      final title = sl['overlayMetadata']?['primaryText']?['content']?.toString() ??
+          sl['accessibilityText']?.toString() ??
+          'Short';
+
+      final viewCountStr = sl['overlayMetadata']?['secondaryText']?['content']?.toString();
+      final viewCount = _parseViewCount(viewCountStr);
+
+      final thumbs = sl['thumbnail']?['sources'] as List?;
+      String thumbUrl = 'https://img.youtube.com/vi/$videoId/hqdefault.jpg';
+      if (thumbs != null && thumbs.isNotEmpty) {
+        final last = thumbs.last;
+        if (last is Map && last['url'] != null) {
+          thumbUrl = last['url'].toString();
+        }
+      }
+
+      return Video(
+        id: videoId,
+        title: title,
+        description: '#shorts',
+        thumbnailUrl: thumbUrl,
+        highThumbnailUrl: 'https://img.youtube.com/vi/$videoId/maxresdefault.jpg',
+        channelId: 'channel_$videoId',
+        channelTitle: 'YouTube Shorts',
+        publishedAt: DateTime.now().subtract(const Duration(days: 2)),
+        duration: const Duration(seconds: 45),
+        viewCount: viewCount > 0 ? viewCount : 500000,
+        likeCount: (viewCount * 0.05).round(),
+        isLive: false,
+      );
+    } catch (_) {
+      return null;
+    }
   }
 
   Video? _parseVideoRenderer(Map vr, String videoId) {

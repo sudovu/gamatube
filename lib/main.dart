@@ -232,11 +232,18 @@ class MainNavigationShell extends StatefulWidget {
 
 class _MainNavigationShellState extends State<MainNavigationShell> {
   int _currentIndex = 0;
+  final ScrollController _homeScrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
     _checkFirstRun();
+  }
+
+  @override
+  void dispose() {
+    _homeScrollController.dispose();
+    super.dispose();
   }
 
   Future<void> _checkFirstRun() async {
@@ -259,6 +266,7 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
   Widget build(BuildContext context) {
     final pages = [
       HomeScreen(
+        scrollController: _homeScrollController,
         onSearchTap: () {
           Navigator.push(
             context,
@@ -277,6 +285,19 @@ class _MainNavigationShellState extends State<MainNavigationShell> {
     return ResponsiveScaffold(
       currentIndex: _currentIndex,
       onNavigationChanged: (index) {
+        final playback = context.read<PlaybackProvider>();
+        if (index == 0 && _currentIndex == 0) {
+          if (playback.isPlayerExpanded) {
+            playback.minimizePlayer();
+          }
+          if (_homeScrollController.hasClients) {
+            _homeScrollController.animateTo(
+              0,
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeOutCubic,
+            );
+          }
+        }
         setState(() => _currentIndex = index);
       },
       body: IndexedStack(

@@ -194,6 +194,16 @@ class YouTubeV3Service implements VideoPlatformService {
       if (liveTrending.isNotEmpty) return liveTrending;
     } catch (_) {}
 
+    try {
+      final liveTrending = await _innerTubeService.search('trending now');
+      if (liveTrending.isNotEmpty) return liveTrending;
+    } catch (_) {}
+
+    try {
+      final liveTrending = await _innerTubeService.search('trending');
+      if (liveTrending.isNotEmpty) return liveTrending;
+    } catch (_) {}
+
     return _getCuratedFallbackVideos();
   }
 
