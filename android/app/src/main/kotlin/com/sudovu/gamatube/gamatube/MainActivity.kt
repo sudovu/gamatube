@@ -221,6 +221,9 @@ class MainActivity : FlutterActivity() {
     override fun onPictureInPictureModeChanged(isInPictureInPictureMode: Boolean, newConfig: Configuration) {
         super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
         pipMethodChannel?.invokeMethod("onPiPModeChanged", mapOf("isInPiP" to isInPictureInPictureMode))
+        if (!isInPictureInPictureMode && isPlaying) {
+            resumeWebViewPlayback()
+        }
     }
 
     override fun onDestroy() {

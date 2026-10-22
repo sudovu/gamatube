@@ -55,6 +55,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> with WidgetsBindi
   String? _downloadedQuality;
   bool _hasPlaybackError = false;
   String _errorMessage = '';
+  final GlobalKey _playerKey = GlobalKey();
+  final ScrollController _scrollController = ScrollController();
+  DateTime? _lastAutoRecoverTime;
 
   String _resolveErrorMessage(YoutubeError error) {
     switch (error) {
@@ -102,6 +105,17 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> with WidgetsBindi
           setState(() {
             _isPiPActive = isInPiP;
           });
+          if (isInPiP && _scrollController.hasClients) {
+            _scrollController.jumpTo(0);
+          }
+          if (!isInPiP && _isPlaying) {
+            // When maximizing from PiP, ensure playback continues without interruption
+            Future.delayed(const Duration(milliseconds: 150), () {
+              if (mounted && _isPlaying) {
+                _controller.playVideo();
+              }
+            });
+          }
         }
       }
     });
@@ -257,6 +271,24 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> with WidgetsBindi
             _hasPlaybackError = true;
             _errorMessage = _resolveErrorMessage(event.error);
           });
+        } else {
+          // Transient player glitch (e.g. HTML5/codec glitch during window resize or PiP toggle)
+          // Attempt graceful auto-recovery at the current playback position
+          final now = DateTime.now();
+          if (_lastAutoRecoverTime == null || now.difference(_lastAutoRecoverTime!).inSeconds > 3) {
+            _lastAutoRecoverTime = now;
+            final currentSeconds = context.read<PlaybackProvider>().currentPosition.inSeconds.toDouble();
+            _controller.loadVideoById(
+              videoId: widget.video.id,
+              startSeconds: currentSeconds > 0 ? currentSeconds : null,
+            );
+            _controller.playVideo();
+          } else {
+            setState(() {
+              _hasPlaybackError = true;
+              _errorMessage = 'Playback was interrupted. Tap Retry to reload.';
+            });
+          }
         }
       }
       final state = event.playerState;
@@ -338,6 +370,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> with WidgetsBindi
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _mediaSyncTimer?.cancel();
+    _scrollController.dispose();
     final playback = context.read<PlaybackProvider>();
     // If the video is no longer the active video, close controller and stop media service
     if (playback.currentVideo?.id != widget.video.id) {
@@ -350,21 +383,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> with WidgetsBindi
 
   @override
   Widget build(BuildContext context) {
-    if (_isPiPActive) {
-      return Scaffold(
-        backgroundColor: Colors.black,
-        body: Center(
-          child: AspectRatio(
-            aspectRatio: 16 / 9,
-            child: YoutubePlayer(
-              controller: _controller,
-              aspectRatio: 16 / 9,
-            ),
-          ),
-        ),
-      );
-    }
-
     final playback = context.watch<PlaybackProvider>();
     final library = context.watch<LibraryProvider>();
     final theme = Theme.of(context);
@@ -402,65 +420,76 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> with WidgetsBindi
             }
           },
           child: Scaffold(
-          body: SafeArea(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final isWide = constraints.maxWidth >= 900;
+            backgroundColor: Colors.black,
+            body: SafeArea(
+              top: !_isPiPActive,
+              bottom: !_isPiPActive,
+              left: !_isPiPActive,
+              right: !_isPiPActive,
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final isWide = constraints.maxWidth >= 900;
 
-                if (isWide) {
-                  return Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        flex: 7,
-                        child: SingleChildScrollView(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _buildPlayerView(playback),
-                              _buildVideoInfo(theme, library),
-                              _buildAISummarySection(theme),
-                              _buildCommentsPreviewCard(theme),
-                            ],
+                  if (isWide && !_isPiPActive) {
+                    return Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          flex: 7,
+                          child: SingleChildScrollView(
+                            controller: _scrollController,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _buildPlayerView(playback),
+                                _buildVideoInfo(theme, library),
+                                _buildAISummarySection(theme),
+                                _buildCommentsPreviewCard(theme),
+                              ],
+                            ),
                           ),
                         ),
-                      ),
-                      Expanded(
-                        flex: 4,
-                        child: SingleChildScrollView(
-                          child: _buildRelatedVideosList(theme),
+                        Expanded(
+                          flex: 4,
+                          child: SingleChildScrollView(
+                            child: _buildRelatedVideosList(theme),
+                          ),
                         ),
-                      ),
-                    ],
-                  );
-                }
+                      ],
+                    );
+                  }
 
-                return SingleChildScrollView(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildPlayerView(playback),
-                      _buildVideoInfo(theme, library),
-                      _buildAISummarySection(theme),
-                      _buildCommentsPreviewCard(theme),
-                      _buildRelatedVideosList(theme),
-                    ],
-                  ),
-                );
-              },
+                  return SingleChildScrollView(
+                    controller: _scrollController,
+                    physics: _isPiPActive ? const NeverScrollableScrollPhysics() : null,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildPlayerView(playback),
+                        if (!_isPiPActive) ...[
+                          _buildVideoInfo(theme, library),
+                          _buildAISummarySection(theme),
+                          _buildCommentsPreviewCard(theme),
+                          _buildRelatedVideosList(theme),
+                        ],
+                      ],
+                    ),
+                  );
+                },
+              ),
             ),
           ),
         ),
       ),
-    ),
-  );
+    );
   }
 
   Widget _buildPlayerView(PlaybackProvider playback) {
     final theme = Theme.of(context);
     return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        if (playback.savedResumePosition != null)
+        if (!_isPiPActive && playback.savedResumePosition != null)
           Container(
             color: const Color(0xFFCC0000),
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -489,94 +518,97 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> with WidgetsBindi
             ),
           ),
         // Top Player Navigation & Action Strip (YouTube Minimalist Aesthetic)
-        Container(
-          color: Colors.black,
-          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-          child: Row(
-            children: [
-              IconButton(
-                icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Colors.white, size: 28),
-                tooltip: 'Minimize',
-                onPressed: () async {
-                  await context.read<LibraryProvider>().loadLibraryData();
-                  if (!mounted) return;
-                  if (widget.onMinimize != null) {
-                    widget.onMinimize!();
-                  } else {
-                    context.read<PlaybackProvider>().minimizePlayer();
-                    Navigator.pop(context);
-                  }
-                },
-              ),
-              const Spacer(),
-              // Autoplay switch
-              Tooltip(
-                message: _isAutoplayEnabled ? 'Autoplay is on' : 'Autoplay is off',
-                child: IconButton(
-                  icon: Icon(
-                    _isAutoplayEnabled ? Icons.play_circle_filled_rounded : Icons.play_circle_outline_rounded,
-                    color: _isAutoplayEnabled ? Colors.white : Colors.white60,
-                    size: 20,
-                  ),
-                  onPressed: () {
-                    setState(() => _isAutoplayEnabled = !_isAutoplayEnabled);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(_isAutoplayEnabled ? 'Autoplay is on' : 'Autoplay is off'),
-                        duration: const Duration(seconds: 1),
-                      ),
-                    );
+        if (!_isPiPActive)
+          Container(
+            color: Colors.black,
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+            child: Row(
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Colors.white, size: 28),
+                  tooltip: 'Minimize',
+                  onPressed: () async {
+                    await context.read<LibraryProvider>().loadLibraryData();
+                    if (!mounted) return;
+                    if (widget.onMinimize != null) {
+                      widget.onMinimize!();
+                    } else {
+                      context.read<PlaybackProvider>().minimizePlayer();
+                      Navigator.pop(context);
+                    }
                   },
                 ),
-              ),
-              // Captions toggle
-              Tooltip(
-                message: 'Subtitles/CC',
-                child: IconButton(
-                  icon: Icon(
-                    _isCaptionsEnabled ? Icons.closed_caption_rounded : Icons.closed_caption_outlined,
-                    color: _isCaptionsEnabled ? Colors.white : Colors.white60,
-                    size: 20,
+                const Spacer(),
+                // Autoplay switch
+                Tooltip(
+                  message: _isAutoplayEnabled ? 'Autoplay is on' : 'Autoplay is off',
+                  child: IconButton(
+                    icon: Icon(
+                      _isAutoplayEnabled ? Icons.play_circle_filled_rounded : Icons.play_circle_outline_rounded,
+                      color: _isAutoplayEnabled ? Colors.white : Colors.white60,
+                      size: 20,
+                    ),
+                    onPressed: () {
+                      setState(() => _isAutoplayEnabled = !_isAutoplayEnabled);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(_isAutoplayEnabled ? 'Autoplay is on' : 'Autoplay is off'),
+                          duration: const Duration(seconds: 1),
+                        ),
+                      );
+                    },
                   ),
-                  onPressed: () {
-                    setState(() => _isCaptionsEnabled = !_isCaptionsEnabled);
-                  },
                 ),
-              ),
-              // Settings Gear (Quality, Speed, Loop, Sleep Timer, Stats)
-              Tooltip(
-                message: 'Settings',
-                child: IconButton(
-                  icon: const Icon(Icons.settings_outlined, color: Colors.white, size: 20),
-                  onPressed: () => _showPlayerSettings(context),
+                // Captions toggle
+                Tooltip(
+                  message: 'Subtitles/CC',
+                  child: IconButton(
+                    icon: Icon(
+                      _isCaptionsEnabled ? Icons.closed_caption_rounded : Icons.closed_caption_outlined,
+                      color: _isCaptionsEnabled ? Colors.white : Colors.white60,
+                      size: 20,
+                    ),
+                    onPressed: () {
+                      setState(() => _isCaptionsEnabled = !_isCaptionsEnabled);
+                    },
+                  ),
                 ),
-              ),
-            ],
+                // Settings Gear (Quality, Speed, Loop, Sleep Timer, Stats)
+                Tooltip(
+                  message: 'Settings',
+                  child: IconButton(
+                    icon: const Icon(Icons.settings_outlined, color: Colors.white, size: 20),
+                    onPressed: () => _showPlayerSettings(context),
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
         // Active YouTube Player View with Ambient Mode Glow Effect
         Stack(
           children: [
-            Positioned.fill(
-              child: Container(
-                decoration: BoxDecoration(
-                  gradient: RadialGradient(
-                    center: Alignment.bottomCenter,
-                    radius: 1.3,
-                    colors: [
-                      AppColors.primary.withAlpha(45),
-                      Colors.transparent,
-                    ],
+            if (!_isPiPActive)
+              Positioned.fill(
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: RadialGradient(
+                      center: Alignment.bottomCenter,
+                      radius: 1.3,
+                      colors: [
+                        AppColors.primary.withAlpha(45),
+                        Colors.transparent,
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ),
             AspectRatio(
               aspectRatio: 16 / 9,
               child: Stack(
                 fit: StackFit.expand,
                 children: [
                   YoutubePlayer(
+                    key: _playerKey,
                     controller: _controller,
                     aspectRatio: 16 / 9,
                   ),
@@ -676,7 +708,12 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> with WidgetsBindi
                     label: const Text('Retry', style: TextStyle(fontSize: 12)),
                     onPressed: () {
                       setState(() => _hasPlaybackError = false);
-                      _controller.loadVideoById(videoId: widget.video.id);
+                      final currentSec = context.read<PlaybackProvider>().currentPosition.inSeconds.toDouble();
+                      _controller.loadVideoById(
+                        videoId: widget.video.id,
+                        startSeconds: currentSec > 0 ? currentSec : null,
+                      );
+                      _controller.playVideo();
                     },
                   ),
                 ],
